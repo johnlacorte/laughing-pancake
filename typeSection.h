@@ -20,7 +20,7 @@ void initWasmTypeBucket(struct WasmTypeBucket*);
 
 //Return type, number of parameters, array of bytes that are the Wasm var type constants.
 //This may get moved "one level up" and newType() may no longer be static.
-unsigned int addType(struct WasmTypeBucket*, unsigned char, unsigned char, unsigned char*);
+unsigned int addWasmType(struct WasmTypeBucket*, unsigned char, unsigned char, unsigned char*);
 
 //Dumps a WasmTypeBucket to a file.
 int dumpWasmTypeBucket(FILE*, struct WasmTypeBucket*);

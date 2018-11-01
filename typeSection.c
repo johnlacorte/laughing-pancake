@@ -1,4 +1,5 @@
-//What is the minimum I need to do to test this?
+//Adding a type currently does not check if memory was allocated but everything is checked
+//to make sure it matches up when dumping to file and will return a negative return value.
 #include "typeSection.h"
 #include "fileOutput.h"
 #include <stdlib.h>
@@ -30,6 +31,7 @@ static struct WasmType *newType(unsigned char returnValueType, unsigned char num
 {
     struct WasmType *new;
 
+    //I should allocate memory for params and copy
     new = malloc(sizeof(struct WasmType));
     if(new != NULL){
         new->paramCount = numberOfParams;
@@ -55,7 +57,7 @@ static void addSizeToPayloadCounter(struct WasmTypeBucket *typeBucket, unsigned 
 
 //This may get moved "one level up".
 //This may also take a WasmType pointer instead. Not sure yet.
-unsigned int addType(struct WasmTypeBucket *typeBucket, unsigned char returnValueType, unsigned char numberOfParams, unsigned char *paramTypes)
+unsigned int addWasmType(struct WasmTypeBucket *typeBucket, unsigned char returnValueType, unsigned char numberOfParams, unsigned char *paramTypes)
 {
     struct WasmType *current;
     unsigned int typeIndex = 0;
@@ -114,7 +116,7 @@ int dumpWasmTypeBucket(FILE *fp, struct WasmTypeBucket *typeBucket)
     int i;
     struct WasmType *current;
 
-    if(typeBucket->numberOfEntries > 0)
+    if(typeBucket->wasmTypeListHead != NULL)
     {
         //section code
         writeVarUInt(fp, 1);
@@ -156,6 +158,14 @@ int dumpWasmTypeBucket(FILE *fp, struct WasmTypeBucket *typeBucket)
             }
         }
             //check to make sure current is NULL
+    }
+    else
+    {
+        //list head is NULL but number of entries > 0
+        if(typeBucket->numberOfEntries > 0)
+        {
+            returnValue = -1;
+        }
     }
     //check if the number of types in list is greater than the counter.
     if(current != NULL)
