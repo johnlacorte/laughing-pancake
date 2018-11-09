@@ -51,7 +51,7 @@ unsigned int addWasmFunction(struct WasmFunctionBucket *functionBucket, unsigned
 }
 
 
-int dumpWasmFunctionBucket(FILE *fp, struct WasmFunctionBucket *functionBucket)
+int dumpWasmFunctionBucket(struct WasmFunctionBucket *functionBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;

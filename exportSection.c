@@ -68,7 +68,7 @@ void addWasmExport(struct WasmExportBucket *exportBucket, unsigned int fieldLeng
     }
 }
 
-int dumpWasmExportBucket(FILE *fp, struct WasmExportBucket *exportBucket)
+int dumpWasmExportBucket(struct WasmExportBucket *exportBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;

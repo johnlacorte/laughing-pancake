@@ -21,7 +21,7 @@ void initWasmFunctionBucket(struct WasmFunctionBucket*);
 //function bucket, type index for function
 unsigned int addWasmFunction(struct WasmFunctionBucket*, unsigned int);
 
-int dumpWasmFunctionBucket(FILE*, struct WasmFunctionBucket*);
+int dumpWasmFunctionBucket(struct WasmFunctionBucket*, FILE*);
 
 #endif
 

@@ -114,7 +114,7 @@ void addWasmCode(struct WasmCodeBucket *codeBucket, unsigned int variableCount, 
     }
 }
 
-int dumpWasmCodeBucket(FILE *fp, struct WasmCodeBucket *codeBucket)
+int dumpWasmCodeBucket(struct WasmCodeBucket *codeBucket, FILE *fp)
 {
     int returnValue = 0;
     int i, j;

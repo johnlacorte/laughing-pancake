@@ -33,7 +33,7 @@ void initWasmCodeBucket(struct WasmCodeBucket*);
 //by 0x0b 
 void addWasmCode(struct WasmCodeBucket*, unsigned int, unsigned char*, unsigned int, unsigned char*);
 
-int dumpWasmCodeBucket(FILE*, struct WasmCodeBucket*);
+int dumpWasmCodeBucket(struct WasmCodeBucket*, FILE*);
 
 #endif
 

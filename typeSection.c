@@ -11,6 +11,16 @@ void initWasmTypeBucket(struct WasmTypeBucket *typeBucket)
     typeBucket->numberOfEntries = 0;
 }
 
+struct WasmTypeBucket *newWasmTypeBucket()
+{
+    struct WasmTypeBucket *typeBucket;
+    typeBucket = malloc(sizeof(struct WasmTypeBucket));
+    typeBucket->wasmTypeListHead = NULL;
+    typeBucket->payloadSize = 0;
+    typeBucket->numberOfEntries = 0;
+    return typeBucket;
+}
+
 static int compareTypes(unsigned int numberOfParams, unsigned char *type1, unsigned char *type2)
 {
     //Might want to take WasmType pointers instead to check function calls with as well.
@@ -27,15 +37,23 @@ static int compareTypes(unsigned int numberOfParams, unsigned char *type1, unsig
     return returnValue;
 }
 
-static struct WasmType *newType(unsigned char returnValueType, unsigned char numberOfParams, char *paramTypes)
+static struct WasmType *newType(unsigned char returnValueType, unsigned char numberOfParams, unsigned char *paramTypes)
 {
     struct WasmType *new;
+    unsigned char *paramArray;
+    int i;
 
     //I should allocate memory for params and copy
     new = malloc(sizeof(struct WasmType));
     if(new != NULL){
         new->paramCount = numberOfParams;
-        new->paramTypes = paramTypes;
+        paramArray = malloc(sizeof(unsigned char) * numberOfParams);
+        //copy to a new chunk of memory
+        for(i = 0; i < numberOfParams; i++)
+        {
+            paramArray[i] = paramTypes[i];
+        }
+        new->paramTypes = paramArray;
         new->returnType = returnValueType;
         new->next = NULL;
     }
@@ -110,7 +128,7 @@ unsigned int addWasmType(struct WasmTypeBucket *typeBucket, unsigned char return
     
 //}
 
-int dumpWasmTypeBucket(FILE *fp, struct WasmTypeBucket *typeBucket)
+int dumpWasmTypeBucket(struct WasmTypeBucket *typeBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;
