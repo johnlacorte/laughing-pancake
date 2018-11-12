@@ -1,5 +1,5 @@
 #ifndef GLOBALSECTION_H
-#define EXPORTSECTION_H
+#define GLOBALSECTION_H
 #include <stdio.h>
 
 struct WasmGlobal
@@ -9,6 +9,7 @@ struct WasmGlobal
     //only immutable values can be imported or exported
     unsigned char variableType;
     unsigned char mutability;
+    unsigned int initSize;
     unsigned char *initExpr;
     struct WasmGlobal *next;
 };
@@ -19,14 +20,13 @@ struct WasmGlobalBucket
     size_t payloadSize;
     size_t numberOfEntries;
     size_t numberOfImports;
-    //tail pointer?
 };
 
-void initWasmExportBucket(struct WasmGlobalBucket);
+void initWasmGlobalBucket(struct WasmGlobalBucket*);
 
 //I think this might want to return index
 //global_type and init_expr for this
-int addWasmGlobal(struct WasmGlobalBucket*, unsigned char, unsigned char, unsigned char*);
+unsigned int addWasmGlobal(struct WasmGlobalBucket*, unsigned char, unsigned char, unsigned int, unsigned char*);
 
 int dumpWasmGlobalBucket(struct WasmGlobalBucket*, FILE*);
 
