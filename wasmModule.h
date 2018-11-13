@@ -7,7 +7,7 @@
 //#include "importSection.h"
 #include "functionSection.h"
 //#include "tableSection.h"
-//#include "memorySection.h"
+#include "memorySection.h"
 #include "globalSection.h"
 #include "exportSection.h"
 //#include "startSection.h"
@@ -22,7 +22,7 @@ struct WasmModule
     //struct WasmImportBucket importBucket;
     struct WasmFunctionBucket functionBucket;
     //struct WasmTableBucket tableBucket;
-    //struct WasmMemoryBucket memoryBucket;
+    struct WasmMemoryBucket memoryBucket;
     struct WasmGlobalBucket globalBucket;
     struct WasmExportBucket exportBucket;
     //struct WasmStartBucket startBucket;
@@ -45,7 +45,7 @@ unsigned int addFunctionToModule(struct WasmModule*, unsigned int);
 
 //void addTableToModule(struct WasmModule*);
 
-//void addMemoryToModule(struct WasmModule*);
+void addMemoryToModule(struct WasmModule*, unsigned int, unsigned int, unsigned int);
 
 unsigned int addGlobalToModule(struct WasmModule*, unsigned char, unsigned char, unsigned int, unsigned char*);
 

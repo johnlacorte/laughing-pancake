@@ -76,7 +76,7 @@ int dumpWasmGlobalBucket(struct WasmGlobalBucket *globalBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;
-    struct WasmGlobal *current;
+    struct WasmGlobal *current = NULL;
 
     if(globalBucket->wasmGlobalListHead != NULL)
     {

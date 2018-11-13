@@ -2,14 +2,16 @@
 #define TYPESECTION_H
 #include <stdio.h>
 
-struct WasmType{
+struct WasmType
+{
     unsigned char paramCount;
     unsigned char *paramTypes;
     unsigned char returnType;
     struct WasmType *next;
 };
 
-struct WasmTypeBucket{
+struct WasmTypeBucket
+{
     struct WasmType *wasmTypeListHead;
     size_t payloadSize;
     size_t numberOfEntries;

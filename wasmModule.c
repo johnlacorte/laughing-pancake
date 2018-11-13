@@ -8,7 +8,7 @@ void initWasmModule(struct WasmModule *module)
     //struct WasmImportBucket *importBucket;
     struct WasmFunctionBucket *functionBucket;
     //struct WasmTableBucket *tableBucket;
-    //struct WasmMemoryBucket *memoryBucket;
+    struct WasmMemoryBucket *memoryBucket;
     struct WasmGlobalBucket *globalBucket;
     struct WasmExportBucket *exportBucket;
     //struct WasmStartBucket *startBucket;
@@ -21,7 +21,7 @@ void initWasmModule(struct WasmModule *module)
     //importBucket = &module->importBucket;
     functionBucket = &module->functionBucket;
     //tableBucket = &module->tableBucket;
-    //memoryBucket = &module->memoryBucket;
+    memoryBucket = &module->memoryBucket;
     globalBucket = &module->globalBucket;
     exportBucket = &module->exportBucket;
     //startBucket = &module->startBucket;
@@ -34,7 +34,7 @@ void initWasmModule(struct WasmModule *module)
     //initWasmImportBucket(importBucket);
     initWasmFunctionBucket(functionBucket);
     //initWasmTableBucket(tableBucket);
-    //initWasmMemoryBucket(memoryBucket);
+    initWasmMemoryBucket(memoryBucket);
     initWasmGlobalBucket(globalBucket);
     initWasmExportBucket(exportBucket);
     //initWasmStartBucket(startBucket);
@@ -89,15 +89,15 @@ void addTableToModule(struct WasmModule *module)
 }
 */
 
-/*
-void addMemoryToModule(struct WasmModule *module)
+
+void addMemoryToModule(struct WasmModule *module, unsigned int flags, unsigned int initialSize, unsigned int maximumSize)
 {
     struct WasmMemoryBucket *memoryBucket;
 
     memoryBucket = &module->memoryBucket;
-    addWasmMemory(memoryBucket);
+    addWasmMemory(memoryBucket, flags, initialSize, maximumSize);
 }
-*/
+
 
 unsigned int addGlobalToModule(struct WasmModule *module, unsigned char variableType, unsigned char mutability, unsigned int initSize, unsigned char *initExpr)
 {
@@ -170,7 +170,7 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     //struct WasmImportBucket *importBucket;
     struct WasmFunctionBucket *functionBucket;
     //struct WasmTableBucket *tableBucket;
-    //struct WasmMemoryBucket *memoryBucket;
+    struct WasmMemoryBucket *memoryBucket;
     struct WasmGlobalBucket *globalBucket;
     struct WasmExportBucket *exportBucket;
     //struct WasmStartBucket *startBucket;
@@ -191,8 +191,8 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     dumpWasmFunctionBucket(functionBucket, fp);
     //tableBucket = &module->tableBucket;
     //dumpWasmTableBucket(tableBucket, fp);
-    //memoryBucket = &module->memoryBucket;
-    //dumpWasmMemoryBucket(memoryBucket, fp);
+    memoryBucket = &module->memoryBucket;
+    dumpWasmMemoryBucket(memoryBucket, fp);
     globalBucket = &module->globalBucket;
     dumpWasmGlobalBucket(globalBucket, fp);
     exportBucket = &module->exportBucket;
