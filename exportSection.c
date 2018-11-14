@@ -72,7 +72,7 @@ int dumpWasmExportBucket(struct WasmExportBucket *exportBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;
-    struct WasmExport *current;
+    struct WasmExport *current = NULL;
 
     if(exportBucket->wasmExportListHead != NULL)
     {

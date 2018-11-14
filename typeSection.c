@@ -132,7 +132,7 @@ int dumpWasmTypeBucket(struct WasmTypeBucket *typeBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;
-    struct WasmType *current;
+    struct WasmType *current = NULL;
 
     if(typeBucket->wasmTypeListHead != NULL)
     {

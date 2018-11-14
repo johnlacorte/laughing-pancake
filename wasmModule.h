@@ -6,7 +6,7 @@
 #include "typeSection.h"
 //#include "importSection.h"
 #include "functionSection.h"
-//#include "tableSection.h"
+#include "tableSection.h"
 #include "memorySection.h"
 #include "globalSection.h"
 #include "exportSection.h"
@@ -21,7 +21,7 @@ struct WasmModule
     struct WasmTypeBucket typeBucket;
     //struct WasmImportBucket importBucket;
     struct WasmFunctionBucket functionBucket;
-    //struct WasmTableBucket tableBucket;
+    struct WasmTableBucket tableBucket;
     struct WasmMemoryBucket memoryBucket;
     struct WasmGlobalBucket globalBucket;
     struct WasmExportBucket exportBucket;
@@ -43,7 +43,7 @@ unsigned int addTypeToModule(struct WasmModule*, unsigned char, unsigned char, u
 
 unsigned int addFunctionToModule(struct WasmModule*, unsigned int);
 
-//void addTableToModule(struct WasmModule*);
+unsigned int addTableToModule(struct WasmModule*, unsigned char, unsigned int, unsigned int, unsigned int);
 
 void addMemoryToModule(struct WasmModule*, unsigned int, unsigned int, unsigned int);
 

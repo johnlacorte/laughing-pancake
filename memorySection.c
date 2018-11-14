@@ -40,7 +40,7 @@ unsigned int addWasmMemory(struct WasmMemoryBucket *memoryBucket, unsigned int f
         current = memoryBucket->wasmMemoryListHead;
         while(current != NULL)
         {
-            if(current != NULL)
+            if(current->next != NULL)
             {
                 current = current->next;
             }

@@ -118,8 +118,8 @@ int dumpWasmCodeBucket(struct WasmCodeBucket *codeBucket, FILE *fp)
 {
     int returnValue = 0;
     int i, j;
-    struct WasmCode *current;
-    struct WasmLocalEntry *currentEntry;
+    struct WasmCode *current = NULL;
+    struct WasmLocalEntry *currentEntry = NULL;
 
     if(codeBucket->wasmCodeListHead != NULL)
     {

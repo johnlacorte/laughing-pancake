@@ -55,7 +55,7 @@ int dumpWasmFunctionBucket(struct WasmFunctionBucket *functionBucket, FILE *fp)
 {
     int returnValue = 0;
     int i;
-    struct WasmFunction *current;
+    struct WasmFunction *current = NULL;
 
     if(functionBucket->wasmFunctionListHead != NULL)
     {
