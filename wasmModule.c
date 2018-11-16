@@ -11,7 +11,7 @@ void initWasmModule(struct WasmModule *module)
     struct WasmMemoryBucket *memoryBucket;
     struct WasmGlobalBucket *globalBucket;
     struct WasmExportBucket *exportBucket;
-    //struct WasmStartBucket *startBucket;
+    struct WasmStartBucket *startBucket;
     //struct WasmElementBucket *elementBucket;
     struct WasmCodeBucket *codeBucket;
     //struct WasmDataBucket *dataBucket;
@@ -24,7 +24,7 @@ void initWasmModule(struct WasmModule *module)
     memoryBucket = &module->memoryBucket;
     globalBucket = &module->globalBucket;
     exportBucket = &module->exportBucket;
-    //startBucket = &module->startBucket;
+    startBucket = &module->startBucket;
     //elementBucket = &module->elementBucket;
     codeBucket = &module->codeBucket;
     //dataBucket = &module->dataBucket;
@@ -37,7 +37,7 @@ void initWasmModule(struct WasmModule *module)
     initWasmMemoryBucket(memoryBucket);
     initWasmGlobalBucket(globalBucket);
     initWasmExportBucket(exportBucket);
-    //initWasmStartBucket(startBucket);
+    initWasmStartBucket(startBucket);
     //initWasmElementBucket(elementBucket);
     initWasmCodeBucket(codeBucket);
     //initWasmDataBucket(dataBucket);
@@ -112,15 +112,13 @@ void addExportToModule(struct WasmModule *module, unsigned int fieldLength, char
     addWasmExport(exportBucket, fieldLength, field, kind, index);
 }
 
-/*
-void addStartToModule(struct WasmModule *module)
+void addStartToModule(struct WasmModule *module, unsigned int functionIndex)
 {
     struct WasmStartBucket *startBucket;
 
     startBucket = &module->startBucket;
-    addWasmStart(startBucket);
+    addWasmStart(startBucket, functionIndex);
 }
-*/
 
 /*
 void addElementToModule(struct WasmModule *module)
@@ -170,7 +168,7 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     struct WasmMemoryBucket *memoryBucket;
     struct WasmGlobalBucket *globalBucket;
     struct WasmExportBucket *exportBucket;
-    //struct WasmStartBucket *startBucket;
+    struct WasmStartBucket *startBucket;
     //struct WasmElementBucket *elementBucket;
     struct WasmCodeBucket *codeBucket;
     //struct WasmDataBucket *dataBucket;
@@ -194,8 +192,8 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     dumpWasmGlobalBucket(globalBucket, fp);
     exportBucket = &module->exportBucket;
     dumpWasmExportBucket(exportBucket, fp);
-    //startBucket = &module->startBucket;
-    //dumpWasmStartBucket(startBucket, fp);
+    startBucket = &module->startBucket;
+    dumpWasmStartBucket(startBucket, fp);
     //elementBucket = &module->elementBucket;
     //dumpWasmElementBucket(elementBucket, fp);
     codeBucket = &module->codeBucket;

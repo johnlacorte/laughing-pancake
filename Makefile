@@ -1,8 +1,11 @@
-wb: fileOutput.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o wasmModule.o main.o
-	gcc -o wb fileOutput.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o wasmModule.o main.o
+wb: fileOutput.o startSection.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o wasmModule.o main.o
+	gcc -o wb fileOutput.o startSection.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o wasmModule.o main.o
 
 main.o: main.c
 	gcc -c main.c
+
+startSection.o: startSection.c startSection.h
+	gcc -c startSection.c
 
 tableSection.o: tableSection.c tableSection.h
 	gcc -c tableSection.c

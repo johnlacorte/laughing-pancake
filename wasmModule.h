@@ -10,7 +10,7 @@
 #include "memorySection.h"
 #include "globalSection.h"
 #include "exportSection.h"
-//#include "startSection.h"
+#include "startSection.h"
 //#include "elementSection.h"
 #include "codeSection.h"
 //#include "dataSection.h"
@@ -25,7 +25,7 @@ struct WasmModule
     struct WasmMemoryBucket memoryBucket;
     struct WasmGlobalBucket globalBucket;
     struct WasmExportBucket exportBucket;
-    //struct WasmStartBucket startBucket;
+    struct WasmStartBucket startBucket;
     //struct WasmElementBucket elementBucket;
     struct WasmCodeBucket codeBucket;
     //struct WasmDataBucket dataBucket;
@@ -51,7 +51,7 @@ unsigned int addGlobalToModule(struct WasmModule*, unsigned char, unsigned char,
 
 void addExportToModule(struct WasmModule*, unsigned int, char*, unsigned char, unsigned int);
 
-//void addStartToModule(struct WasmModule*);
+void addStartToModule(struct WasmModule*, unsigned int);
 
 //void addElementToModule(struct WasmModule*);
 

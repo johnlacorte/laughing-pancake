@@ -2,8 +2,6 @@
 #include "fileOutput.h"
 #include <stdlib.h>
 
-//make sure current pointer in file dump functions is initialized to NULL.
-
 void initWasmTableBucket(struct WasmTableBucket *tableBucket)
 {
     tableBucket->wasmTableListHead = NULL;
