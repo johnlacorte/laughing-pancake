@@ -10,6 +10,7 @@ struct WasmData
     unsigned char *initExpr;
     unsigned int dataSize;
     unsigned char *dataBytes;
+    struct WasmData *next;
 };
 
 struct WasmDataBucket
@@ -22,7 +23,8 @@ struct WasmDataBucket
 
 void initWasmDataBucket(struct WasmDataBucket*);
 
-void addWasmData(struct WasmDataBucket*);
+//data bucket, memory index, init expr length, init expr, datasize, data
+void addWasmData(struct WasmDataBucket*, unsigned int, unsigned int, unsigned char*, unsigned int, unsigned char*);
 
 int dumpWasmDataBucket(struct WasmDataBucket*, FILE*);
 

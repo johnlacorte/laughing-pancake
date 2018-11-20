@@ -15,7 +15,7 @@ unsigned int addWasmTable(struct WasmTableBucket *tableBucket, unsigned char ele
     struct WasmTable *current;
     unsigned int tableIndex = 0;
 
-    if(tableBucket->wasmTableListHead != NULL)
+    if(tableBucket->wasmTableListHead == NULL)
     {
         current = malloc(sizeof(struct WasmTable));
         current->elementType = elementType;
