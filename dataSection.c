@@ -10,7 +10,7 @@ void initWasmDataBucket(struct WasmDataBucket *dataBucket)
     dataBucket->wasmDataListTail = NULL;
 }
 
-void addWasmData(struct WasmDataBucket *dataBucket, unsigned int memoryIndex, unsigned int initLength, unsigned char *initExpr, unsigned int dataSize, unsigned char *dataBytes)
+void addWasmData(struct WasmDataBucket *dataBucket, unsigned int memoryIndex, unsigned int initLength, unsigned char *initExpr, unsigned int dataLength, unsigned char *dataBytes)
 {
     struct WasmData *current;
     unsigned char *byteArray;
@@ -28,16 +28,16 @@ void addWasmData(struct WasmDataBucket *dataBucket, unsigned int memoryIndex, un
         {
             byteArray[i] = initExpr[i];
         }
-        current->dataSize = dataSize;
-        current->dataBytes = malloc(sizeof(char) * dataSize);
+        current->dataLength = dataLength;
+        current->dataBytes = malloc(sizeof(char) * dataLength);
         byteArray = current->dataBytes;
-        for(i = 0; i < dataSize; i++)
+        for(i = 0; i < dataLength; i++)
         {
             byteArray[i] = dataBytes[i];
         }
         current->next = NULL;
         //add payload size
-        dataBucket->payloadSize += varUIntSize(memoryIndex) + initLength + varUIntSize(dataSize) + dataSize;
+        dataBucket->payloadSize += varUIntSize(memoryIndex) + initLength + varUIntSize(dataLength) + dataLength;
         //add number of entries
         dataBucket->numberOfEntries++;
         dataBucket->wasmDataListHead = current;
@@ -51,22 +51,22 @@ void addWasmData(struct WasmDataBucket *dataBucket, unsigned int memoryIndex, un
         //copy function arguments
         current->memoryIndex = memoryIndex;
         current->initExprLength = initLength;
-        current->initExpr = malloc(sizeof(char) * dataSize);
+        current->initExpr = malloc(sizeof(char) * initLength);
         byteArray = current->initExpr;
         for(i = 0; i < initLength; i++)
         {
             byteArray[i] = initExpr[i];
         }
-        current->dataSize = dataSize;
-        current->dataBytes = malloc(sizeof(char) * dataSize);
+        current->dataLength = dataLength;
+        current->dataBytes = malloc(sizeof(char) * dataLength);
         byteArray = current->dataBytes;
-        for(i = 0; i < dataSize; i++)
+        for(i = 0; i < current->dataLength; i++)
         {
             byteArray[i] = dataBytes[i];
         }
         current->next = NULL;
         //add payload size
-        dataBucket->payloadSize += varUIntSize(memoryIndex) + initLength + varUIntSize(dataSize) + dataSize;
+        dataBucket->payloadSize += varUIntSize(memoryIndex) + initLength + varUIntSize(dataLength) + dataLength;
         //add number of entries
         dataBucket->wasmDataListTail = current;
     }
@@ -87,21 +87,21 @@ int dumpWasmDataBucket(struct WasmDataBucket *dataBucket, FILE *fp)
         //number of entries
         writeVarUInt(fp, dataBucket->numberOfEntries);
         current = dataBucket->wasmDataListHead;
-        for(i = 0; i < dataBucket->numberOFEntries; i++)
+        for(i = 0; i < dataBucket->numberOfEntries; i++)
         {
             if(current != NULL)
             {
                 //write entry
                 writeVarUInt(fp, current->memoryIndex);
-                writeByteArray(fp, current->initExprLength, initExpr);
-                writeVarUInt(fp, current->dataSize);
-                writeByteArray(fp, current->dataSize, current->dataBytes);
+                writeByteArray(fp, current->initExprLength, current->initExpr);
+                writeVarUInt(fp, current->dataLength);
+                writeByteArray(fp, current->dataLength, current->dataBytes);
                 current = current->next;
                 returnValue++;
             }
             else
             {
-                returnBalue = -1;
+                returnValue = -1;
                 break;
             }
         }

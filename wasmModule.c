@@ -12,9 +12,9 @@ void initWasmModule(struct WasmModule *module)
     struct WasmGlobalBucket *globalBucket;
     struct WasmExportBucket *exportBucket;
     struct WasmStartBucket *startBucket;
-    //struct WasmElementBucket *elementBucket;
+    struct WasmElementBucket *elementBucket;
     struct WasmCodeBucket *codeBucket;
-    //struct WasmDataBucket *dataBucket;
+    struct WasmDataBucket *dataBucket;
     //struct WasmNameBucket *nameBucket;
 
     typeBucket = &module->typeBucket;
@@ -25,9 +25,9 @@ void initWasmModule(struct WasmModule *module)
     globalBucket = &module->globalBucket;
     exportBucket = &module->exportBucket;
     startBucket = &module->startBucket;
-    //elementBucket = &module->elementBucket;
+    elementBucket = &module->elementBucket;
     codeBucket = &module->codeBucket;
-    //dataBucket = &module->dataBucket;
+    dataBucket = &module->dataBucket;
     //nameBucket = &module->nameBucket;
 
     initWasmTypeBucket(typeBucket);
@@ -38,9 +38,9 @@ void initWasmModule(struct WasmModule *module)
     initWasmGlobalBucket(globalBucket);
     initWasmExportBucket(exportBucket);
     initWasmStartBucket(startBucket);
-    //initWasmElementBucket(elementBucket);
+    initWasmElementBucket(elementBucket);
     initWasmCodeBucket(codeBucket);
-    //initWasmDataBucket(dataBucket);
+    initWasmDataBucket(dataBucket);
     //initWasmNameBucket(nameBucket);
 }
 
@@ -120,15 +120,13 @@ void addStartToModule(struct WasmModule *module, unsigned int functionIndex)
     addWasmStart(startBucket, functionIndex);
 }
 
-/*
-void addElementToModule(struct WasmModule *module)
+void addElementToModule(struct WasmModule *module, unsigned int tableIndex, unsigned int initExprLength, unsigned char *initExpr, unsigned int numberOfElements, unsigned int *elements)
 {
     struct WasmElementBucket *elementBucket;
 
     elementBucket = &module->elementBucket;
-    addWasmElement(elementBucket);
+    addWasmElement(elementBucket, tableIndex, initExprLength, initExpr, numberOfElements, elements);
 }
-*/
 
 void addCodeToModule(struct WasmModule *module, unsigned int variableCount, unsigned char *variableTypes, unsigned int bytecodeSize, unsigned char *bytecode)
 {
@@ -138,15 +136,13 @@ void addCodeToModule(struct WasmModule *module, unsigned int variableCount, unsi
     addWasmCode(codeBucket, variableCount, variableTypes, bytecodeSize, bytecode);
 }
 
-/*
-void addDataToModule(struct WasmModule *module)
+void addDataToModule(struct WasmModule *module, unsigned int memoryIndex, unsigned int initExprLength, unsigned char *initExpr, unsigned int dataLength, unsigned char *dataBytes)
 {
-    struct WasmDataDucket *dataBucket;
+    struct WasmDataBucket *dataBucket;
 
     dataBucket = &module->dataBucket;
-    addWasmData(dataBucket);
+    addWasmData(dataBucket, memoryIndex, initExprLength, initExpr, dataLength, dataBytes);
 }
-*/
 
 /*
 void addNameToModule(struct WasmModule *module)
@@ -169,9 +165,9 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     struct WasmGlobalBucket *globalBucket;
     struct WasmExportBucket *exportBucket;
     struct WasmStartBucket *startBucket;
-    //struct WasmElementBucket *elementBucket;
+    struct WasmElementBucket *elementBucket;
     struct WasmCodeBucket *codeBucket;
-    //struct WasmDataBucket *dataBucket;
+    struct WasmDataBucket *dataBucket;
     //struct WasmNameBucket *nameBucket;
 
     char version[4] = {1, 0, 0, 0};
@@ -194,12 +190,12 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     dumpWasmExportBucket(exportBucket, fp);
     startBucket = &module->startBucket;
     dumpWasmStartBucket(startBucket, fp);
-    //elementBucket = &module->elementBucket;
-    //dumpWasmElementBucket(elementBucket, fp);
+    elementBucket = &module->elementBucket;
+    dumpWasmElementBucket(elementBucket, fp);
     codeBucket = &module->codeBucket;
     dumpWasmCodeBucket(codeBucket, fp);
-    //dataBucket = &module->dataBucket;
-    //dumpWasmDataBucket(dataBucket, fp);
+    dataBucket = &module->dataBucket;
+    dumpWasmDataBucket(dataBucket, fp);
     //nameBucket = &module->nameBucket;
     //dumpWasmNameBucket;
     return 0;

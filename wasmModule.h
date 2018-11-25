@@ -11,9 +11,9 @@
 #include "globalSection.h"
 #include "exportSection.h"
 #include "startSection.h"
-//#include "elementSection.h"
+#include "elementSection.h"
 #include "codeSection.h"
-//#include "dataSection.h"
+#include "dataSection.h"
 //#include "nameSection.h"
 
 struct WasmModule
@@ -26,9 +26,9 @@ struct WasmModule
     struct WasmGlobalBucket globalBucket;
     struct WasmExportBucket exportBucket;
     struct WasmStartBucket startBucket;
-    //struct WasmElementBucket elementBucket;
+    struct WasmElementBucket elementBucket;
     struct WasmCodeBucket codeBucket;
-    //struct WasmDataBucket dataBucket;
+    struct WasmDataBucket dataBucket;
     //struct WasmNameBucket nameBucket;
 };
 
@@ -53,11 +53,11 @@ void addExportToModule(struct WasmModule*, unsigned int, char*, unsigned char, u
 
 void addStartToModule(struct WasmModule*, unsigned int);
 
-//void addElementToModule(struct WasmModule*);
+void addElementToModule(struct WasmModule*, unsigned int, unsigned int, unsigned char*, unsigned int, unsigned int*);
 
 void addCodeToModule(struct WasmModule*, unsigned int, unsigned char*, unsigned int, unsigned char*);
 
-//void addDataToModule(struct WasmModule*);
+void addDataToModule(struct WasmModule*, unsigned int, unsigned int, unsigned char*, unsigned int, unsigned char*);
 
 //void addNameToModule(struct WasmModule*);
 

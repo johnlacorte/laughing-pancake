@@ -8,7 +8,7 @@ struct WasmData
     //Do I need length for something like this?
     unsigned int initExprLength;
     unsigned char *initExpr;
-    unsigned int dataSize;
+    unsigned int dataLength;
     unsigned char *dataBytes;
     struct WasmData *next;
 };
