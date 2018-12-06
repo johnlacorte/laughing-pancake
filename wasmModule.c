@@ -5,7 +5,7 @@
 void initWasmModule(struct WasmModule *module)
 {
     struct WasmTypeBucket *typeBucket;
-    //struct WasmImportBucket *importBucket;
+    struct WasmImportBucket *importBucket;
     struct WasmFunctionBucket *functionBucket;
     struct WasmTableBucket *tableBucket;
     struct WasmMemoryBucket *memoryBucket;
@@ -18,7 +18,7 @@ void initWasmModule(struct WasmModule *module)
     //struct WasmNameBucket *nameBucket;
 
     typeBucket = &module->typeBucket;
-    //importBucket = &module->importBucket;
+    importBucket = &module->importBucket;
     functionBucket = &module->functionBucket;
     tableBucket = &module->tableBucket;
     memoryBucket = &module->memoryBucket;
@@ -31,7 +31,7 @@ void initWasmModule(struct WasmModule *module)
     //nameBucket = &module->nameBucket;
 
     initWasmTypeBucket(typeBucket);
-    //initWasmImportBucket(importBucket);
+    initWasmImportBucket(importBucket);
     initWasmFunctionBucket(functionBucket);
     initWasmTableBucket(tableBucket);
     initWasmMemoryBucket(memoryBucket);
@@ -61,15 +61,49 @@ unsigned int addTypeToModule(struct WasmModule *module, unsigned char returnValu
     return addWasmType(typeBucket, returnValueType, numberOfParams, paramTypes);
 }
 
-/*
-void addImportToModule(struct WasmModule *module)
+void addFunctionImportToModule(struct WasmModule *module, unsigned int moduleLength, char *moduleName, unsigned int fieldLength, char *fieldName, unsigned int typeIndex)
 {
     struct WasmImportBucket *importBucket;
 
     importBucket = &module->importBucket;
-    addWasmImport(importBucket);
+    //0 for externalKind = function
+    addWasmImport(importBucket, moduleLength, moduleName, fieldLength, fieldName, 0);
+    setImportTypeToFunction(importBucket, typeIndex);
+    module->functionBucket.numberOfImports++;
 }
-*/
+
+void addTableImportToModule(struct WasmModule *module, unsigned int moduleLength, char *moduleName, unsigned int fieldLength, char *fieldName, unsigned char elementType, unsigned int flags, unsigned int initialSize, unsigned int maximumSize)
+{
+    struct WasmImportBucket *importBucket;
+
+    importBucket = &module->importBucket;
+    //1 for externalKind = table
+    addWasmImport(importBucket, moduleLength, moduleName, fieldLength, fieldName, 1);
+    setImportTypeToTable(importBucket, elementType, flags, initialSize, maximumSize);
+    module->tableBucket.numberOfImports++;
+}
+
+void addMemoryImportToModule(struct WasmModule *module, unsigned int moduleLength, char *moduleName, unsigned int fieldLength, char *fieldName, unsigned int flags, unsigned int initialSize, unsigned int maximumSize)
+{
+    struct WasmImportBucket *importBucket;
+
+    importBucket = &module->importBucket;
+    //2 for externalKind = memory
+    addWasmImport(importBucket, moduleLength, moduleName, fieldLength, fieldName, 2);
+    setImportTypeToMemory(importBucket, flags, initialSize, maximumSize);
+    module->memoryBucket.numberOfImports++;
+}
+
+void addGlobalImportToModule(struct WasmModule *module, unsigned int moduleLength, char *moduleName, unsigned int fieldLength, char *fieldName, unsigned char variableType, unsigned char mutability)
+{
+    struct WasmImportBucket *importBucket;
+
+    importBucket = &module->importBucket;
+    //3 for externalKind = global
+    addWasmImport(importBucket, moduleLength, moduleName, fieldLength, fieldName, 3);
+    setImportTypeToGlobal(importBucket, variableType, mutability);
+    module->globalBucket.numberOfImports++;
+}
 
 unsigned int addFunctionToModule(struct WasmModule *module, unsigned int typeIndex)
 {
@@ -154,11 +188,11 @@ void addNameToModule(struct WasmModule *module)
 }
 */
 
-int dumpWasmModule(struct WasmModule *module, FILE *fp)
+int dumpWasmModule(struct WasmModule *module, FILE *fp, unsigned int version)
 {
     int returnValue = 0;
     struct WasmTypeBucket *typeBucket;
-    //struct WasmImportBucket *importBucket;
+    struct WasmImportBucket *importBucket;
     struct WasmFunctionBucket *functionBucket;
     struct WasmTableBucket *tableBucket;
     struct WasmMemoryBucket *memoryBucket;
@@ -170,14 +204,11 @@ int dumpWasmModule(struct WasmModule *module, FILE *fp)
     struct WasmDataBucket *dataBucket;
     //struct WasmNameBucket *nameBucket;
 
-    char version[4] = {1, 0, 0, 0};
-
-    writeMagicNumber(fp);
-    writeByteArray(fp, 4, version);
+    writeMagicNumber(fp, version);
     typeBucket = &module->typeBucket;
     dumpWasmTypeBucket(typeBucket, fp);
-    //importBucket = &module->importBucket;
-    //dumpWasmImportBucket(importBucket, fp);
+    importBucket = &module->importBucket;
+    dumpWasmImportBucket(importBucket, fp);
     functionBucket = &module->functionBucket;
     dumpWasmFunctionBucket(functionBucket, fp);
     tableBucket = &module->tableBucket;

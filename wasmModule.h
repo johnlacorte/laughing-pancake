@@ -4,7 +4,7 @@
 
 //include all the header files
 #include "typeSection.h"
-//#include "importSection.h"
+#include "importSection.h"
 #include "functionSection.h"
 #include "tableSection.h"
 #include "memorySection.h"
@@ -19,7 +19,7 @@
 struct WasmModule
 {
     struct WasmTypeBucket typeBucket;
-    //struct WasmImportBucket importBucket;
+    struct WasmImportBucket importBucket;
     struct WasmFunctionBucket functionBucket;
     struct WasmTableBucket tableBucket;
     struct WasmMemoryBucket memoryBucket;
@@ -39,7 +39,13 @@ struct WasmModule *newWasmModule();
 //I may change the names of these
 unsigned int addTypeToModule(struct WasmModule*, unsigned char, unsigned char, unsigned char*);
 
-//void addImportToModule(struct WasmModule*);
+void addFunctionImportToModule(struct WasmModule*, unsigned int, char*, unsigned int, char*, unsigned int);
+
+void addTableImportToModule(struct WasmModule*, unsigned int, char*, unsigned int, char*, unsigned char, unsigned int, unsigned int, unsigned int);
+
+void addMemoryImportToModule(struct WasmModule*, unsigned int, char*, unsigned int, char*, unsigned int, unsigned int, unsigned int);
+
+void addGlobalImportToModule(struct WasmModule*, unsigned int, char*, unsigned int, char*, unsigned char, unsigned char);
 
 unsigned int addFunctionToModule(struct WasmModule*, unsigned int);
 
@@ -61,7 +67,7 @@ void addDataToModule(struct WasmModule*, unsigned int, unsigned int, unsigned ch
 
 //void addNameToModule(struct WasmModule*);
 
-int dumpWasmModule(struct WasmModule*, FILE*);
+int dumpWasmModule(struct WasmModule*, FILE*, unsigned int);
 
 #endif
 

@@ -7,10 +7,16 @@ linking?
 
 #include "fileOutput.h"
 
-size_t writeMagicNumber(FILE *fp)
+size_t writeMagicNumber(FILE *fp, unsigned int version)
 {
-    char magicNumber[] = {0x0, 0x61, 0x73, 0x6d};
-    return fwrite(magicNumber, sizeof(char), 4, fp);
+    char magicNumber[8] = {0x0, 0x61, 0x73, 0x6d, 0x0, 0x0, 0x0, 0x0};
+    int index = 4;
+    while(version > 0)
+    {
+        magicNumber[index] = version & 255;
+        version = version >> 8;
+    }
+    return fwrite(magicNumber, sizeof(char), 8, fp);
 }
 
 size_t writeByte(FILE *fp, unsigned char byte)

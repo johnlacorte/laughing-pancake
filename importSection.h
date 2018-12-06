@@ -28,7 +28,7 @@ union ImportType
     unsigned int functionType;
     struct WasmImportTable tableType;
     struct WasmImportMemory memoryType;
-    struct WasmImportGlobal;
+    struct WasmImportGlobal globalType;
 };
 
 struct WasmImport
@@ -56,7 +56,17 @@ void initWasmImportBucket(struct WasmImportBucket*);
 //module_len, module_str, field_len, field_str, kind, and one of four types
 //I'm either going to have to pass in a ImportType or skip that stuff and
 //have a second function to set those things to the tail of the list.
-void addWasmImport(struct WasmImportBucket*);
+void addWasmImport(struct WasmImportBucket*, unsigned int, char*, unsigned int, char*, unsigned char);
+
+void setImportTypeToFunction(struct WasmImportBucket*, unsigned int);
+
+void setImportTypeToTable(struct WasmImportBucket*, unsigned char, unsigned int, unsigned int, unsigned int);
+
+void setImportTypeToMemory(struct WasmImportBucket*, unsigned int, unsigned int, unsigned int);
+
+void setImportTypeToGlobal(struct WasmImportBucket*, unsigned char, unsigned char);
+
+void writeImportType(FILE*, unsigned char, union ImportType);
 
 int dumpWasmImportBucket(struct WasmImportBucket*, FILE*);
 

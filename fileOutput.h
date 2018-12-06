@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 //Writes magic number ("\0asm") at the start of a module.
-size_t writeMagicNumber(FILE*);
+size_t writeMagicNumber(FILE*, unsigned int);
 
 //Writes unsigned char to file.
 size_t writeByte(FILE*, unsigned char);
