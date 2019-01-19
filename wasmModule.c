@@ -1,3 +1,7 @@
+//The plan is to add the name section then build another layer on top of this with a name structure that is easier
+//to search and stuff.
+//I would like to be able to load modules as well, this would allow me to reuse this in a linker.
+
 #include "fileOutput.h"
 #include "wasmModule.h"
 #include <stdlib.h>

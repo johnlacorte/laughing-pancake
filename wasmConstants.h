@@ -18,5 +18,9 @@
 #define EXTERNAL_MEMORY 0x02
 #define EXTERNAL_GLOBAL 0x03
 
+//for globals
+#define IMM 0
+#define MUT 1
+
 #endif
 
