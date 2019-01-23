@@ -114,6 +114,7 @@ unsigned int addWasmType(struct WasmTypeBucket *typeBucket, unsigned char return
                 current->next = newType(returnValueType, numberOfParams, paramTypes);
                 addSizeToPayloadCounter(typeBucket, returnValueType, numberOfParams);
                 typeBucket->numberOfEntries++;
+                current = current->next;
             }
             typeIndex++;
         }

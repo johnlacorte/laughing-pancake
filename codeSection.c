@@ -55,8 +55,8 @@ void addWasmCode(struct WasmCodeBucket *codeBucket, unsigned int variableCount, 
             currentEntry->count = counter;
             currentEntry->next = NULL;
             current->bodySize += varUIntSize(counter) + 1;
-            current->bodySize += varUIntSize(current->localEntryCount);
         }
+        current->bodySize += varUIntSize(current->localEntryCount);
         codeBucket->wasmCodeListHead = current;
         codeBucket->wasmCodeListTail = current;
         codeBucket->payloadSize += varUIntSize(current->bodySize) + current->bodySize;
@@ -99,8 +99,8 @@ void addWasmCode(struct WasmCodeBucket *codeBucket, unsigned int variableCount, 
             currentEntry->count = counter;
             currentEntry->next = NULL;
             current->bodySize += varUIntSize(counter) + 1;
-            current->bodySize += varUIntSize(current->localEntryCount);
         }
+        current->bodySize += varUIntSize(current->localEntryCount);
         codeBucket->wasmCodeListTail = current;
         codeBucket->payloadSize += varUIntSize(current->bodySize) + current->bodySize;
     }

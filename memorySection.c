@@ -17,7 +17,7 @@ unsigned int addWasmMemory(struct WasmMemoryBucket *memoryBucket, unsigned int f
     struct WasmMemory *current;
     unsigned int memoryIndex = 0;
 
-    if(memoryBucket->wasmMemoryListHead != NULL)
+    if(memoryBucket->wasmMemoryListHead == NULL)
     {
         current = malloc(sizeof(struct WasmMemory));
         //copy values
