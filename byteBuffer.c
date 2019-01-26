@@ -17,10 +17,11 @@ union Double
 
 void initByteBuffer(struct ByteBuffer *byteBuffer, unsigned int size)
 {
-    byteBuffer->bytes = malloc(sizeof(unsigned char) * (size + (size /2)));
+    byteBuffer->bytes = malloc(sizeof(unsigned char) * size);
     byteBuffer->index = 0;
-    byteBuffer->resize = size;
-    byteBuffer->size = size + (size / 2);
+    byteBuffer->size = size;
+    byteBuffer->head = NULL;
+    byteBuffer->tail = NULL;
 }
 
 void growByteBuffer(struct ByteBuffer *byteBuffer)
@@ -38,7 +39,6 @@ void growByteBuffer(struct ByteBuffer *byteBuffer)
     }
     free(byteBuffer->bytes);
     byteBuffer->bytes = newByteBuffer;
-    byteBuffer->resize *= 2;
     byteBuffer->size *= 2;
 }
 
@@ -46,7 +46,7 @@ size_t addByteToBuffer(struct ByteBuffer *byteBuffer, unsigned char byte)
 {
     size_t bytesWritten = 0;
 
-    if(byteBuffer->index >= byteBuffer->resize)
+    if(byteBuffer->index >= byteBuffer->size)
     {
         growByteBuffer(byteBuffer);
     }
@@ -149,9 +149,72 @@ size_t copyArrayToBuffer(struct ByteBuffer *byteBuffer, unsigned int length, cha
     return bytesWritten;
 }
 
+void addIndexOffsetToBuffer(struct ByteBuffer *byteBuffer, unsigned char indexType)
+{
+    struct IndexOffset *newIndexOffset;
+
+    newIndexOffset = malloc(sizeof(struct IndexOffset));
+    newIndexOffset->indexType = indexType;
+    newIndexOffset->indexOffset = byteBuffer->index;
+    newIndexOffset->next = NULL;
+
+    if(byteBuffer->head == NULL)
+    {
+        byteBuffer->head = newIndexOffset;
+        byteBuffer->tail = newIndexOffset;
+    }
+    else
+    {
+        byteBuffer->tail->next = newIndexOffset;
+        byteBuffer->tail = newIndexOffset;
+    }
+}
+
+void appendBuffer(struct ByteBuffer *destination, struct ByteBuffer *source)
+{
+    int i;
+    int nextIndex = -1;
+    unsigned char indexType;
+    unsigned int destinationSize = destination->index;
+    struct IndexOffset *indexOffset;
+
+    indexOffset = source->head;
+    if(indexOffset != NULL)
+    {
+        nextIndex = indexOffset->indexOffset;
+        indexType = indexOffset->indexType;
+    }
+    for(i = 0; i < source->index; i++)
+    {
+        if(i == nextIndex)
+        {
+            addIndexOffsetToBuffer(destination, indexType);
+            indexOffset = indexOffset->next;
+            if(indexOffset != NULL)
+            {
+                nextIndex = indexOffset->indexOffset;
+                indexType = indexOffset->indexType;
+            }
+        }
+        addByteToBuffer(destination, source->bytes[i]);
+    }
+}
+
+void freeIndexOffset(struct IndexOffset *indexOffset)
+{
+    if(indexOffset != NULL)
+    {
+        freeIndexOffset(indexOffset->next);
+        free(indexOffset);
+    }
+}
+
 void resetByteBuffer(struct ByteBuffer *byteBuffer)
 {
     byteBuffer->index = 0;
+    freeIndexOffset(byteBuffer->head);
+    byteBuffer->head = NULL;
+    byteBuffer->tail = NULL;
 }
 
 void bb_BLOCK(struct ByteBuffer *byteBuffer, unsigned char returnType)
@@ -197,10 +260,11 @@ void bb_BR_TABLE(struct ByteBuffer *byteBuffer, unsigned int targetCount, unsign
     addVarUIntToBuffer(byteBuffer, defaultTarget);
 }
 
-void bb_CALL(struct ByteBuffer *byteBuffer, unsigned int functionIndex)
+void bb_CALL(struct ByteBuffer *byteBuffer, unsigned char indexType, unsigned int functionIndex)
 {
     addByteToBuffer(byteBuffer, OP_CALL);
     //add bytebuffer index to functionIndex structure in byteBuffer
+    addIndexOffsetToBuffer(byteBuffer, indexType);
     addVarUIntToBuffer(byteBuffer, functionIndex);    
 }
 
@@ -234,10 +298,11 @@ void bb_TEE_LOCAL(struct ByteBuffer *byteBuffer, unsigned int localIndex)
     addVarUIntToBuffer(byteBuffer, localIndex);
 }
 
-void bb_GET_GLOBAL(struct ByteBuffer *byteBuffer, unsigned int globalIndex)
+void bb_GET_GLOBAL(struct ByteBuffer *byteBuffer, unsigned char indexType, unsigned int globalIndex)
 {
     addByteToBuffer(byteBuffer, OP_GET_GLOBAL);
     //store global index
+    addIndexOffsetToBuffer(byteBuffer, indexType);
     addVarUIntToBuffer(byteBuffer, globalIndex);
 }
 
@@ -245,6 +310,7 @@ void bb_SET_GLOBAL(struct ByteBuffer *byteBuffer, unsigned int globalIndex)
 {
     addByteToBuffer(byteBuffer, OP_SET_GLOBAL);
     //store global index
+    addIndexOffsetToBuffer(byteBuffer, indexType);
     addVarUIntToBuffer(byteBuffer, globalIndex);
 }
 
@@ -409,6 +475,10 @@ void bb_loadOperator(struct ByteBuffer, *byteBuffer, unsigned char memorySpace, 
     }
     addVarUIntToBuffer(byteBuffer, flags);
     //add offset to the linker section with the memory space
+    if(memorySpace != MS_STACK)
+    {
+        addIndexOffsetToBuffer(byteBuffer, memorySpace);
+    }
     addVarUIntToBuffer(byteBuffer, offset);
 }
 
@@ -464,6 +534,10 @@ void bb_storeOperator(struct ByteBuffer *byteBuffer, unsigned char memorySpace, 
     }
     addVarUIntToBuffer(byteBuffer, flags);
     //add to linker section
+    if(memorySpace != MS_STACK)
+    {
+        addIndexOffsetToBuffer(byteBuffer, memorySpace);
+    }
     addVarUIntToBuffer(offset);
 }
 

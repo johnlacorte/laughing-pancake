@@ -6,10 +6,6 @@
 
 int main()
 {
-    //char test[3] = {VAR_I32, VAR_I32};
-    //char fieldName[] = {"addn"};
-    //char localType[1] = {VAR_I32};
-    //char codeBlock[6] = {OP_GET_LOCAL, 0x00, OP_GET_LOCAL, 0x01, OP_I32_ADD, OP_END};
 
     unsigned char globalInit[3] = {OP_I32_CONST, 0x00, OP_END};
     unsigned char stackPointerInit[5] = {OP_I32_CONST, 0xFF, 0xFF, 0x03, OP_END};
@@ -44,7 +40,7 @@ int main()
     unsigned int Void_IntIntInt;
     unsigned int Int_Int;
 
-    unsigned int dataLength = 0;
+    unsigned int dataLength = 4;
     unsigned int globalLength = 0;
 
     FILE *fp;
@@ -60,6 +56,9 @@ int main()
     addGlobalToModule(&module, VAR_I32, MUT, 3, globalInit);
 
     //global section of linear memory length
+    addGlobalToModule(&module, VAR_I32, MUT, 3, globalInit);
+
+    //heap section of linear memory length
     addGlobalToModule(&module, VAR_I32, MUT, 3, globalInit);
 
     //stack pointer for linear memory
