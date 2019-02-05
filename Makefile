@@ -1,4 +1,4 @@
-wb: fileOutput.o importSection.o elementSection.o dataSection.o startSection.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o wasmModule.o main.o
+wb: fileOutput.o importSection.o elementSection.o dataSection.o startSection.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o byteBuffer.o wasmModule.o main.o
 	gcc -o wb fileOutput.o importSection.o elementSection.o dataSection.o startSection.o tableSection.o memorySection.o codeSection.o exportSection.o functionSection.o globalSection.o typeSection.o wasmModule.o byteBuffer.o main.o
 
 main.o: main.c

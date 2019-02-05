@@ -134,12 +134,12 @@ void addMemoryToModule(struct WasmModule *module, unsigned int flags, unsigned i
 }
 
 
-unsigned int addGlobalToModule(struct WasmModule *module, unsigned char variableType, unsigned char mutability, unsigned int initSize, unsigned char *initExpr)
+unsigned int addGlobalToModule(struct WasmModule *module, unsigned char variableType, unsigned char mutability, struct ByteBuffer *initExpr)
 {
     struct WasmGlobalBucket *globalBucket;
 
     globalBucket = &module->globalBucket;
-    return addWasmGlobal(globalBucket, variableType, mutability, initSize, initExpr);
+    return addWasmGlobal(globalBucket, variableType, mutability, initExpr->index, initExpr->bytes);
 }
 
 void addExportToModule(struct WasmModule *module, unsigned int fieldLength, char *field, unsigned char kind, unsigned int index)
@@ -158,20 +158,20 @@ void addStartToModule(struct WasmModule *module, unsigned int functionIndex)
     addWasmStart(startBucket, functionIndex);
 }
 
-void addElementToModule(struct WasmModule *module, unsigned int tableIndex, unsigned int initExprLength, unsigned char *initExpr, unsigned int numberOfElements, unsigned int *elements)
+void addElementToModule(struct WasmModule *module, unsigned int tableIndex, struct ByteBuffer *initExpr, unsigned int numberOfElements, unsigned int *elements)
 {
     struct WasmElementBucket *elementBucket;
 
     elementBucket = &module->elementBucket;
-    addWasmElement(elementBucket, tableIndex, initExprLength, initExpr, numberOfElements, elements);
+    addWasmElement(elementBucket, tableIndex, initExpr->index, initExpr->bytes, numberOfElements, elements);
 }
 
-void addCodeToModule(struct WasmModule *module, unsigned int variableCount, unsigned char *variableTypes, unsigned int bytecodeSize, unsigned char *bytecode)
+void addCodeToModule(struct WasmModule *module, unsigned int variableCount, unsigned char *variableTypes, struct ByteBuffer *bytecode)
 {
     struct WasmCodeBucket *codeBucket;
 
     codeBucket = &module->codeBucket;
-    addWasmCode(codeBucket, variableCount, variableTypes, bytecodeSize, bytecode);
+    addWasmCode(codeBucket, variableCount, variableTypes, bytecode->index, bytecode->bytes);
 }
 
 void addDataToModule(struct WasmModule *module, unsigned int memoryIndex, unsigned int initExprLength, unsigned char *initExpr, unsigned int dataLength, unsigned char *dataBytes)

@@ -19,10 +19,19 @@
 #define VAR_SIZE_64BIT 3
 #define VAR_UNSIGNED 0
 #define VAR_SIGNED 1
+#define VAR_SIGN_NA 2
+
+//for tagging indexes
 #define MS_DATA 0
 #define MS_GLOBAL 1
 #define MS_HEAP 2
 #define MS_STACK 3
+#define GLOBAL_TYPE_IMPORT 4
+#define GLOBAL_TYPE_LOCAL 5
+#define GLOBAL_TYPE_MS 6
+#define FUNCTION_TYPE_IMPORT 7
+#define FUNCTION_TYPE_LOCAL 8
+#define FUNCTION_TYPE_EXTERN 9
 
 //external types
 #define EXTERNAL_FUNC 0x00

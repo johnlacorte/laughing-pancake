@@ -16,6 +16,8 @@
 #include "dataSection.h"
 //#include "nameSection.h"
 
+#include "byteBuffer.h"
+
 struct WasmModule
 {
     struct WasmTypeBucket typeBucket;
@@ -53,15 +55,15 @@ unsigned int addTableToModule(struct WasmModule*, unsigned char, unsigned int, u
 
 void addMemoryToModule(struct WasmModule*, unsigned int, unsigned int, unsigned int);
 
-unsigned int addGlobalToModule(struct WasmModule*, unsigned char, unsigned char, unsigned int, unsigned char*);
+unsigned int addGlobalToModule(struct WasmModule*, unsigned char, unsigned char, struct ByteBuffer*);
 
 void addExportToModule(struct WasmModule*, unsigned int, char*, unsigned char, unsigned int);
 
 void addStartToModule(struct WasmModule*, unsigned int);
 
-void addElementToModule(struct WasmModule*, unsigned int, unsigned int, unsigned char*, unsigned int, unsigned int*);
+void addElementToModule(struct WasmModule*, unsigned int, struct ByteBuffer*, unsigned int, unsigned int*);
 
-void addCodeToModule(struct WasmModule*, unsigned int, unsigned char*, unsigned int, unsigned char*);
+void addCodeToModule(struct WasmModule*, unsigned int, unsigned char*, struct ByteBuffer*);
 
 void addDataToModule(struct WasmModule*, unsigned int, unsigned int, unsigned char*, unsigned int, unsigned char*);
 

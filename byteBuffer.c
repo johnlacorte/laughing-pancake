@@ -1,3 +1,4 @@
+//I should add an option to pad varuints for indexes that may change during linking
 #include <stdlib.h>
 #include "byteBuffer.h"
 #include "opCodes.h"
@@ -56,41 +57,48 @@ size_t addByteToBuffer(struct ByteBuffer *byteBuffer, unsigned char byte)
     return bytesWritten;
 }
 
-size_t addVarUIntToBuffer(struct ByteBuffer *byteBuffer, unsigned int number)
+void addVarUIntToBuffer(struct ByteBuffer *byteBuffer, unsigned int number)
 {
-    size_t bytesWritten = 0;
     unsigned char byte;
 
-    do
+    byte = number & 127;
+    number = number >> 7;
+    while(number > 0)
     {
-        byte = number & 127;
+        byte += 128;
         addByteToBuffer(byteBuffer, byte);
+        byte = number & 127;
         number = number >> 7;
-        if(bytesWritten > 0)
-        {
-            byteBuffer->bytes[byteBuffer->index - 1] += 128;
-        }
-        bytesWritten++;
-    } while(number > 0);
-
-    return bytesWritten;
+    }
+    addByteToBuffer(byteBuffer, byte);
 }
 
-size_t addVarIntToBuffer(struct ByteBuffer *byteBuffer, int number)
+void addVarIntToBuffer(struct ByteBuffer *byteBuffer, long number)
 {
-    size_t bytesWritten = 0;
-    unsigned int uNumber;
+    unsigned char byte;
 
-    if(number < 0)
+    byte = number & 127;
+    number = number >> 7;
+    while(number != 0 && number != -1)
     {
-        uNumber = 0xffffffff + number + 1;
+        byte += 128;
+        addByteToBuffer(byteBuffer, byte);
+        byte = number & 127;
+        number = number >> 7;
     }
-    else
+    if(number == 0 && (byte & 64) == 64)
     {
-        uNumber = 0 + number;
+        byte += 128;
+        addByteToBuffer(byteBuffer, byte);
+        byte = number & 127;
     }
-    bytesWritten = addVarUIntToBuffer(byteBuffer, uNumber);
-    return bytesWritten;
+    else if(number == -1 && (byte & 64) == 0)
+    {
+        byte += 128;
+        addByteToBuffer(byteBuffer, byte);
+        byte = number & 127;
+    }
+    addByteToBuffer(byteBuffer, byte);
 }
 
 size_t addFloatToBuffer(struct ByteBuffer *byteBuffer, float number)
@@ -217,6 +225,12 @@ void resetByteBuffer(struct ByteBuffer *byteBuffer)
     byteBuffer->tail = NULL;
 }
 
+void freeByteBuffer(struct ByteBuffer *byteBuffer)
+{
+    resetByteBuffer(byteBuffer);
+    free(byteBuffer->bytes);
+}
+
 void bb_BLOCK(struct ByteBuffer *byteBuffer, unsigned char returnType)
 {
     addByteToBuffer(byteBuffer, OP_BLOCK);
@@ -306,7 +320,7 @@ void bb_GET_GLOBAL(struct ByteBuffer *byteBuffer, unsigned char indexType, unsig
     addVarUIntToBuffer(byteBuffer, globalIndex);
 }
 
-void bb_SET_GLOBAL(struct ByteBuffer *byteBuffer, unsigned int globalIndex)
+void bb_SET_GLOBAL(struct ByteBuffer *byteBuffer, unsigned char indexType, unsigned int globalIndex)
 {
     addByteToBuffer(byteBuffer, OP_SET_GLOBAL);
     //store global index
@@ -326,16 +340,16 @@ void bb_GROW_MEMORY(struct ByteBuffer *byteBuffer, unsigned char reserved)
     addByteToBuffer(byteBuffer, reserved);
 }
 
-void bb_I32_CONST(struct ByteBuffer *byteBuffer, unsigned int value)
+void bb_I32_CONST(struct ByteBuffer *byteBuffer, int value)
 {
     addByteToBuffer(byteBuffer, OP_I32_CONST);
-    addVarUIntToBuffer(byteBuffer, value);
+    addVarIntToBuffer(byteBuffer, value);
 }
 
-void bb_I64_CONST(struct ByteBuffer *byteBuffer, unsigned long value)
+void bb_I64_CONST(struct ByteBuffer *byteBuffer, long value)
 {
     addByteToBuffer(byteBuffer, OP_I64_CONST);
-    addVarUIntToBuffer(byteBuffer, value);
+    addVarIntToBuffer(byteBuffer, value);
 }
 
 void bb_F32_CONST(struct ByteBuffer *byteBuffer, float value)
@@ -359,30 +373,26 @@ void bb_memorySpaceStart(struct ByteBuffer *byteBuffer, unsigned char memorySpac
     }
     else if(memorySpace == MS_GLOBAL)
     {
-        bb_GET_GLOBAL(byteBuffer, 0);
+        bb_GET_GLOBAL(byteBuffer, GLOBAL_TYPE_MS, 0);
     }
     else if(memorySpace == MS_HEAP)
     {
-        bb_GET_GLOBAL(byteBuffer, 1);
+        bb_GET_GLOBAL(byteBuffer, GLOBAL_TYPE_MS, 1);
     }
     else if(memorySpace == MS_STACK)
     {
-        bb_GET_GLOBAL(byteBuffer, 2);
+        bb_GET_GLOBAL(byteBuffer, GLOBAL_TYPE_MS, 3);
     }
 }
 
-void bb_pointerAddition(struct ByteBuffer *byteBuffer, unsigned char variableSize, unsigned int index)
+void bb_pointerAddition(struct ByteBuffer *byteBuffer, unsigned char variableSize)
 {
-    if(index > 0)
-    {
-        bb_I32_CONST(byteBuffer, index);
-        bb_I32_CONST(byteBuffer, variableSize);
-        addByteToBuffer(byteBuffer, OP_I32_SHL);
-        addByteToBuffer(byteBuffer, OP_ADD);
-    }
+    bb_I32_CONST(byteBuffer, variableSize);
+    addByteToBuffer(byteBuffer, OP_I32_SHL);
+    addByteToBuffer(byteBuffer, OP_I32_ADD);
 }
 
-void bb_loadOperator(struct ByteBuffer, *byteBuffer, unsigned char memorySpace, unsigned char loadInto, unsigned char variableSize, unsigned char isSigned, unsigned int, flags, unsigned int offset)
+void bb_loadOperator(struct ByteBuffer *byteBuffer, unsigned char memorySpace, unsigned char loadInto, unsigned char variableSize, unsigned char isSigned, unsigned int flags, unsigned int offset)
 {
     if(loadInto == VAR_I32)
     {
@@ -421,7 +431,7 @@ void bb_loadOperator(struct ByteBuffer, *byteBuffer, unsigned char memorySpace, 
             {
                 addByteToBuffer(byteBuffer, OP_I64_LOAD8_S);
             }
-            else if(isSigned == VAR_SIZE_UNSIGNED)
+            else if(isSigned == VAR_UNSIGNED)
             {
                 addByteToBuffer(byteBuffer, OP_I64_LOAD8_U);
             }
@@ -469,7 +479,7 @@ void bb_loadOperator(struct ByteBuffer, *byteBuffer, unsigned char memorySpace, 
         {
             if(isSigned == VAR_SIGN_NA)
             {
-                addByteToBuffer(byteBuffer, OP_F64_LOAD)
+                addByteToBuffer(byteBuffer, OP_F64_LOAD);
             }
         }
     }
@@ -494,7 +504,7 @@ void bb_storeOperator(struct ByteBuffer *byteBuffer, unsigned char memorySpace, 
         {
             addByteToBuffer(byteBuffer, OP_I32_STORE16);
         }
-        else if(variableSize == VAR_Size_32BIT)
+        else if(variableSize == VAR_SIZE_32BIT)
         {
             addByteToBuffer(byteBuffer, OP_I32_STORE);
         }
@@ -538,7 +548,7 @@ void bb_storeOperator(struct ByteBuffer *byteBuffer, unsigned char memorySpace, 
     {
         addIndexOffsetToBuffer(byteBuffer, memorySpace);
     }
-    addVarUIntToBuffer(offset);
+    addVarUIntToBuffer(byteBuffer, offset);
 }
 
 //void bbNegateI32(struct ByteBuffer *byteBuffer)
