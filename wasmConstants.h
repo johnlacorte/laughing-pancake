@@ -20,6 +20,21 @@
 #define VAR_UNSIGNED 0
 #define VAR_SIGNED 1
 #define VAR_SIGN_NA 2
+#define VAR_INTEGER 0
+#define VAR_FLOAT 1
+
+//ctypes
+#define C_TYPE_SIGNED_CHAR 0
+#define C_TYPE_UNSIGNED_CHAR 1
+#define C_TYPE_SIGNED_SHORT 2
+#define C_TYPE_UNSIGNED_SHORT 3
+#define C_TYPE_SIGNED_INT 4
+#define C_TYPE_UNSIGNED_INT 5
+#define C_TYPE_SIGNED_LONG 6
+#define C_TYPE_UNSINGED_LONG 7
+#define C_TYPE_FLOAT 8
+#define C_TYPE_DOUBLE 9
+//void pointer array struct union enum function
 
 //for tagging indexes
 #define MS_DATA 0
