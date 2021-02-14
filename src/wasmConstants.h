@@ -36,17 +36,19 @@
 #define C_TYPE_DOUBLE 9
 //void pointer array struct union enum function
 
-//for tagging indexes
+//for tagging indexes. do I need MS_GLOBAL_EXTERN?
 #define MS_DATA 0
 #define MS_GLOBAL 1
 #define MS_HEAP 2
 #define MS_STACK 3
-#define GLOBAL_TYPE_IMPORT 4
-#define GLOBAL_TYPE_LOCAL 5
-#define GLOBAL_TYPE_MS 6
+#define WASM_GLOBAL_IMPORT 4
+#define WASM_GLOBAL_LOCAL 5
+#define WASM_GLOBAL_EXTERN 6
 #define FUNCTION_TYPE_IMPORT 7
 #define FUNCTION_TYPE_LOCAL 8
 #define FUNCTION_TYPE_EXTERN 9
+#define WASM_LOCAL 10
+//Structures and enums?
 
 //external types
 #define EXTERNAL_FUNC 0x00
