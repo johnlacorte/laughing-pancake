@@ -7,17 +7,17 @@ int open_char_stream(char_stream_t *stream, char *filename)
     stream->fp = fopen(filename, "r");
     if(stream->fp != NULL)
     {
-        stream->status = 0;
+        stream->status = CHAR_STREAM_OK;
         stream->error_msg = "char_stream okay.";
         stream->expected_bytes = 0;
-        return 1;
+        return stream->status;
     }
 
     else
     {
         stream->status = CHAR_STREAM_FAILED_TO_OPEN;
         stream->error_msg = "Error opening file.";
-        return 0;
+        return stream->status;
     }
 }
 
@@ -31,7 +31,12 @@ void close_char_stream(char_stream_t *stream)
 
 void push_7bit_char(char_stream_t *stream, int ch)
 {
-    if(stream->status >= 0)
+    if(stream->status == CHAR_STREAM_EOF)
+    {
+        stream->status = CHAR_STREAM_OK;
+    }
+
+    if(stream->status >= CHAR_STREAM_OK)
     {
         if(ch < 0 || ch > 127)
         {
@@ -200,7 +205,7 @@ char *char_stream_error_msg(char_stream_t *stream)
 
 void char_stream_reset(char_stream_t *stream)
 {
-    stream->status = 0;
+    stream->status = CHAR_STREAM_OK;
     stream->error_msg = "char_stream okay.";
     stream->expected_bytes = 0;
 }
