@@ -8,21 +8,25 @@
 #define CHAR_STREAM_READ_FAILED -4
 #define CHAR_STREAM_FILE_CLOSED -5
 
+
+typedef int32_t s_char32_t;
+
 typedef struct
 {
     FILE *fp;
     int  status;
     char *error_msg;
-    int expected_bytes;
 } char_stream_t;
 
 int open_char_stream(char_stream_t *stream, char *filename);
+
+int is_char_stream_open(char_stream_t *stream);
 
 void close_char_stream(char_stream_t *stream);
 
 void push_7bit_char(char_stream_t *stream, int ch);
 
-int pop_utf8_byte(char_stream_t *stream);
+s_char32_t pop_utf8(char_stream_t *stream);
 
 int pop_7bit_char(char_stream_t *stream);
 

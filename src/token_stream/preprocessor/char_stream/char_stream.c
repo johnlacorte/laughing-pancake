@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 
 #include "char_stream.h"
 
@@ -9,7 +10,6 @@ int open_char_stream(char_stream_t *stream, char *filename)
     {
         stream->status = CHAR_STREAM_OK;
         stream->error_msg = "char_stream okay.";
-        stream->expected_bytes = 0;
         return stream->status;
     }
 
@@ -21,12 +21,25 @@ int open_char_stream(char_stream_t *stream, char *filename)
     }
 }
 
+int is_char_stream_open(char_stream_t *stream)
+{
+    if((stream->status == CHAR_STREAM_FAILED_TO_OPEN) ||
+       (stream->status == CHAR_STREAM_FILE_CLOSED))
+    {
+        return 0;
+    }
+
+    else
+    {
+        return 1;
+    }
+}
+
 void close_char_stream(char_stream_t *stream)
 {
     fclose(stream->fp);
     stream->status = CHAR_STREAM_FILE_CLOSED;
     stream->error_msg = "File is closed.";
-    stream->expected_bytes = 0;
 }
 
 void push_7bit_char(char_stream_t *stream, int ch)
@@ -51,107 +64,116 @@ void push_7bit_char(char_stream_t *stream, int ch)
     }
 }
 
-int pop_utf8_byte(char_stream_t *stream)
+s_char32_t pop_utf8(char_stream_t *stream)
 {
-    //does not check for padding, does not check if codepoints are for
-    //surrogates or if they are outside of the range of the codepoints
-    //or if it's a unicode control character or if the codepoint falls
-    //into a range reserved for private or future use.
     if(stream->status < 0)
     {
         return stream->status;
     }
 
-    else
+    s_char32_t ch = fgetc(stream->fp); //Casting int to int32_t
+    if(ch == EOF)
     {
-        int ch = fgetc(stream->fp);
-        if(stream->expected_bytes > 0)
+        stream->status = CHAR_STREAM_EOF;
+        stream->error_msg = "Normal EOF reached.";
+        return stream->status;
+    }
+
+    //Return 7bit character
+    if(ch < 128)
+    {
+        return ch;
+    }
+
+    if(ch < 192 || ch > 247)
+    {
+        stream->status = CHAR_STREAM_READ_FAILED;
+        stream->error_msg = "UTF8 sequence starts with invalid byte.";
+        return stream->status;
+    }
+
+    //Read initial byte of multibyte sequence
+    s_char32_t codepoint = 0;
+    int number_of_additional_bytes = 0;
+    if(ch < 224)
+    {
+        codepoint = ch & 31; //lowest 5 bits
+        number_of_additional_bytes = 1;
+
+        //The second byte of a two byte utf8 codepoint only holds six bits
+        //so the bits taken from the first byte must be greater than 0.
+        if(codepoint == 0)
         {
-            if(ch == EOF)
-            {
-                stream->status = CHAR_STREAM_READ_FAILED;
-                stream->error_msg = "EOF before the end of a UTF8 character.";
-                return stream->status;
-            }
-
-            if(ch < 128 || ch > 191)
-            {
-                stream->status = CHAR_STREAM_READ_FAILED;
-                stream->error_msg = "Expected additional byte in UTF8 character was out of range.";
-                return stream->status;
-            }
-
-            else
-            {
-                stream->expected_bytes--;
-                return ch;
-            }
-        }
-
-        else //Reading the first character of a sequence.
-        {
-            if(ch == EOF)
-            {
-                stream->status = CHAR_STREAM_EOF;
-                stream->error_msg = "Normal EOF reached.";
-                return stream->status;
-            }
-
-            else
-            {
-                //determine number of expected bytes or return an error.
-                if(ch < 128)
-                {
-                    stream->expected_bytes = 0;
-                    return ch;
-                }
-
-                else
-                {
-                    if(ch < 192)
-                    {
-                        stream->status = CHAR_STREAM_READ_FAILED;
-                        stream->error_msg = "Unexpected additional byte at thestart of UTF8 character.";
-                        return stream->status;
-                    }
-
-                    else
-                    {
-                        if(ch < 224)
-                        {
-                            stream->expected_bytes = 1;
-                            return ch;
-                        }
-
-                        else
-                        {
-                            if(ch < 240)
-                            {
-                                stream->expected_bytes = 2;
-                                return ch;
-                            }
-
-                            else
-                            {
-                                if(ch < 248)
-                                {
-                                    stream->expected_bytes = 3;
-                                    return ch;
-                                }
-
-                                else
-                                {
-                                    stream->status = CHAR_STREAM_READ_FAILED;
-                                    stream->error_msg = "Byte read was > 247.";
-                                    return stream->status;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Unicode codepoint is padded (first byte of two).";
+            return stream->status;
         }
     }
+    else
+    {
+        if(ch < 240)
+        {
+            codepoint = ch & 15; //lowest 4 bits
+            number_of_additional_bytes = 2;
+        }
+
+        else
+        {
+            codepoint = ch & 7; //lowest 3 bits
+            number_of_additional_bytes = 3;
+        }
+    }
+
+    //Get additional bytes of multibyte sequence
+    for(int i = 0; i < number_of_additional_bytes; i++)
+    {
+        ch = fgetc(stream->fp); //Casting int to int32_t
+        if(ch < 0)
+        {
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Unexpected EOF in UTF8 sequence.";
+            return stream->status;
+        }
+
+        if(ch < 128 || ch > 191)
+        {
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Invalid byte in UTF8 sequence.";
+            return stream->status;
+        }
+
+        codepoint = codepoint << 6;
+        codepoint = codepoint + (ch & 63);
+        //After reading the first and second byte the codepoint should be more
+        //than 0 in all cases unless it is padded with zeroes
+        if(codepoint == 0)
+        {
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Unicode codepoint is padded (second byte).";
+            return stream->status;
+        }
+    }
+
+    //There's a gap in the basic multilingual plane to allow utf16 encodings
+    //to encode the characters added later with two 16bit characters
+    if(codepoint >= 0xd800 && codepoint <= 0xdfff)
+    {
+        stream->status = CHAR_STREAM_READ_FAILED;
+        stream->error_msg = "Unicode codepoint is UTF16 surrogate.";
+        return stream->status;
+    }
+
+    //utf8 can store a wider range of values than utf16 but there isn't any
+    //need for additional codepoints anytime soon so 0x10ffff is the maximum
+    //value used in Unicode 
+    if(codepoint > 0x10ffff)
+    {
+        stream->status = CHAR_STREAM_READ_FAILED;
+        stream->error_msg = "Unicode codepoint out of range.";
+        return stream->status;
+    }
+
+    return codepoint;
 }
 
 int pop_7bit_char(char_stream_t *stream)
@@ -163,36 +185,26 @@ int pop_7bit_char(char_stream_t *stream)
 
     else
     {
-        if(stream->expected_bytes > 0)
+        int ch = fgetc(stream->fp);
+        if(ch > 127)
         {
-            stream->status = CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG;
-            stream->error_msg = "Unexpected call to pop_7bit_char() by preprocessor.";
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Read byte > 127 reading 7bit character.";
             return stream->status;
         }
 
         else
         {
-            int ch = fgetc(stream->fp);
-            if(ch > 127)
+            if(ch == EOF)
             {
-                stream->status = CHAR_STREAM_READ_FAILED;
-                stream->error_msg = "Read byte > 127 while reading 7bit character.";
+                stream->status = CHAR_STREAM_EOF;
+                stream->error_msg = "Normal EOF reached.";
                 return stream->status;
             }
 
             else
             {
-                if(ch == EOF)
-                {
-                    stream->status = CHAR_STREAM_EOF;
-                    stream->error_msg = "Normal EOF reached.";
-                    return stream->status;
-                }
-
-                else
-                {
-                    return ch;
-                }
+                return ch;
             }
         }
     }
@@ -207,7 +219,6 @@ void char_stream_reset(char_stream_t *stream)
 {
     stream->status = CHAR_STREAM_OK;
     stream->error_msg = "char_stream okay.";
-    stream->expected_bytes = 0;
 }
 
 /* --- end of file "char_stream.c" --- */

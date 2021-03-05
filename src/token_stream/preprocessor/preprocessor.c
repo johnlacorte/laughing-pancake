@@ -1,20 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "char_stream/char_stream.h"
 #include "preprocessor.h"
 
 typedef struct
 {
-    //change to using a char_stream_t
-    //I might put this and the stuff that interacts with it in a
-    //seperate module or possibly add some of this to char_stream.h
-    FILE *fp;
-    int  status;
-    char *status_string;
-    int  line;
-    int  position;
-    int last_read;
+    char_stream_t *stream;
+    int           status;
+    char          *status_string;
+    int           line;
+    int           position;
+    int           last_read;
 } preproc_state_t;
 
 preproc_t preproc_open_wat(char *filename)
@@ -22,9 +20,8 @@ preproc_t preproc_open_wat(char *filename)
     preproc_state_t *state = malloc(sizeof(preproc_state_t));
     if(state != NULL)
     {
-        //change to opening a char_stream_t
-        state->fp = fopen(filename, "r");
-        if(state->fp != NULL)
+        open_char_stream(state->stream, filename);
+        if(is_char_stream_open(state->stream))
         {
             state->status = PREPROC_OK;
             state->status_string = "No Errors.";
@@ -43,11 +40,11 @@ preproc_t preproc_open_wat(char *filename)
     return (preproc_t)state;
 }
 
-void preproc_free(preproc_t pre)
+void preproc_close_wat(preproc_t pre)
 {
     preproc_state_t *state = (preproc_state_t*)pre;
     //change to close a char_stream_t
-    fclose(state->fp);
+    close_char_stream(state->stream);
     free(state);
 }
 
@@ -60,7 +57,7 @@ int preproc_check_status(preproc_t pre)
 }
 
 //Is this supposed to return a const char* ?
-char *preproc_get_status_string(preproc_t pre)
+char *preproc_error_msg(preproc_t pre)
 {
     preproc_state_t *state = (preproc_state_t*)pre;
     return state->status_string;
@@ -83,6 +80,20 @@ int preproc_read_char(preproc_t pre)
     preproc_state_t *state = (preproc_state_t*)pre;
     //write this function
     return 0;
+}
+
+void preproc_read_name(preproc_t pre, char *buffer)
+{
+
+}
+
+void preproc_read_extern_name(preproc_t pre, char *buffer)
+{
+
+}
+void preproc_read_data(preproc_t pre, char_buffer_t *buffer)
+{
+
 }
 
 char *preproc_read_string(preproc_t pre)
