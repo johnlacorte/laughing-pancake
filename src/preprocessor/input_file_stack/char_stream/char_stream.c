@@ -1,7 +1,15 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "char_stream_status.h"
 #include "char_stream.h"
+
+void init_char_stream(char_stream_t *stream)
+{
+    stream->fp = NULL;
+    stream->status = CHAR_STREAM_FAILED_TO_OPEN;
+    stream->error_msg = "Reading from file where open_char_stream() was never called.";
+}
 
 int open_char_stream(char_stream_t *stream, char *filename)
 {
@@ -64,14 +72,14 @@ void push_7bit_char(char_stream_t *stream, int ch)
     }
 }
 
-s_char32_t pop_utf8(char_stream_t *stream)
+int32_t pop_utf8(char_stream_t *stream)
 {
     if(stream->status < 0)
     {
         return stream->status;
     }
 
-    s_char32_t ch = fgetc(stream->fp); //Casting int to int32_t
+    int32_t ch = fgetc(stream->fp); //Casting int to int32_t
     if(ch == EOF)
     {
         stream->status = CHAR_STREAM_EOF;
@@ -93,7 +101,7 @@ s_char32_t pop_utf8(char_stream_t *stream)
     }
 
     //Read initial byte of multibyte sequence
-    s_char32_t codepoint = 0;
+    int32_t codepoint = 0;
     int number_of_additional_bytes = 0;
     if(ch < 224)
     {
