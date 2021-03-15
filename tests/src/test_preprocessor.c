@@ -35,5 +35,5 @@ int main()
     return tester(NUMBER_OF_TESTS, tests, "Testing assumptions about numbers");
 }
 
-/* --- end of "test_file_name.c" --- */
+/* --- end of "test_char_stream.c" --- */
 

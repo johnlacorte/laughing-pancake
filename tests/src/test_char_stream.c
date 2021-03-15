@@ -6,7 +6,8 @@
 #include <string.h>
 
 // Module Header Files
-#include "../../src/token_stream/preprocessor/char_stream/char_stream.h"
+#include "../../src/preprocessor/input_file_list/char_stream/char_stream_status.h"
+#include "../../src/preprocessor/input_file_list/char_stream/char_stream.h"
 
 // Test Functions
 
@@ -47,16 +48,6 @@ int test_good_read_hello()
 }
 int test_good_read_privet()
 {
-/*    if(pop_utf8(&good_file) == 0x43f) //п
-        if(pop_utf8(&good_file) == 0x440) //р
-            if(pop_utf8(&good_file) == 0x438) // и
-                if(pop_utf8(&good_file) == 0x432) // в
-                    if(pop_utf8(&good_file) == 0x435) // е
-                        if(pop_utf8(&good_file) == 0x442) // т
-                            if(pop_utf8(&good_file) == ' ')
-                                return 1;
-
-    return 0;*/
     return
 (
     (pop_utf8(&good_file) == 0x43f) && //п
@@ -72,10 +63,6 @@ int test_good_read_privet()
 
 int test_good_read_ni_hao()
 {
-/*    if(pop_utf8(&good_file) == 0x4f60) //你
-        if(pop_utf8(&good_file) == 0x597d) //好
-            return 1;
-    return 0;*/
     return
 (
     (pop_utf8(&good_file) == 0x4f60) && //你
@@ -275,8 +262,8 @@ test_t tests[NUMBER_OF_TESTS] =
 
 int main()
 {
-    return (!tester(NUMBER_OF_TESTS, tests,
-            "Testing char_stream"));
+    return tester(NUMBER_OF_TESTS, tests,
+            "Testing char_stream");
 }
 
 /* --- end of "test_char_stream.c" --- */

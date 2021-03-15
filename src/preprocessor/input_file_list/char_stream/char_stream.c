@@ -72,6 +72,40 @@ void push_7bit_char(char_stream_t *stream, int ch)
     }
 }
 
+int pop_7bit_char(char_stream_t *stream)
+{
+    if(stream->status < 0)
+    {
+        return stream->status;
+    }
+
+    else
+    {
+        int ch = fgetc(stream->fp);
+        if(ch > 127)
+        {
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Read byte > 127 reading 7bit character.";
+            return stream->status;
+        }
+
+        else
+        {
+            if(ch == EOF)
+            {
+                stream->status = CHAR_STREAM_EOF;
+                stream->error_msg = "Normal EOF reached.";
+                return stream->status;
+            }
+
+            else
+            {
+                return ch;
+            }
+        }
+    }
+}
+
 int32_t pop_utf8(char_stream_t *stream)
 {
     if(stream->status < 0)
@@ -182,40 +216,6 @@ int32_t pop_utf8(char_stream_t *stream)
     }
 
     return codepoint;
-}
-
-int pop_7bit_char(char_stream_t *stream)
-{
-    if(stream->status < 0)
-    {
-        return stream->status;
-    }
-
-    else
-    {
-        int ch = fgetc(stream->fp);
-        if(ch > 127)
-        {
-            stream->status = CHAR_STREAM_READ_FAILED;
-            stream->error_msg = "Read byte > 127 reading 7bit character.";
-            return stream->status;
-        }
-
-        else
-        {
-            if(ch == EOF)
-            {
-                stream->status = CHAR_STREAM_EOF;
-                stream->error_msg = "Normal EOF reached.";
-                return stream->status;
-            }
-
-            else
-            {
-                return ch;
-            }
-        }
-    }
 }
 
 char *char_stream_error_msg(char_stream_t *stream)

@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "input_file_stack/char_stream/char_stream_status.h"
-#include "input_file_stack.h"
+#include "input_file_list/char_stream/char_stream_status.h"
+#include "input_file_list.h"
 #include "preprocessor.h"
 
 #define ERROR_MSG_MAX_LENGTH 128
@@ -11,7 +11,7 @@
 typedef struct
 {
     char               *include_path;
-    input_file_stack_t stack;
+    input_file_list_t  file_list;
     int                status;
     int                last_read;
     char               *error_msg;
@@ -68,6 +68,9 @@ char *preproc_file_name(preproc_t pre)
     return 0;
 }
 
+//I think I need to have stuff to do checking when reading numbers, insert spaces around
+//parenthesis, underscores, forward slash, and period. Maybe before and after x in hex numbers
+//maybe before and after e or p in floats maybe before and after sign
 int read_preproc_char(preproc_t pre)
 {
     return 0;

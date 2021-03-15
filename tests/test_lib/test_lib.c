@@ -33,7 +33,7 @@ int tester(int number_of_tests, test_t *tests, char *test_name)
         printf("\n%sAll %d tests passed.%s\n", FG_GREEN, number_of_tests, FG_NORMAL);
     }
 
-    return result;
+    return !result;
 }
 
 /* --- end of file "test_char_stream.c" --- */
