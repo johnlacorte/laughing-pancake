@@ -19,7 +19,6 @@ int test_pass_null_to_functions()
     (!strcmp(input_file_name(NULL), "NULL POINTER PASSED TO input_file_name()!!")) &&
     (input_file_line(NULL) == 0) &&
     (input_file_line_position(NULL) == 0) &&
-    (read_7bit_char_from_input_file(NULL) == CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG) &&
     (read_utf8_from_input_file(NULL) == CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG) &&
     (!strcmp(input_file_error_msg(NULL), "NULL POINTER PASSED TO input_file_error_msg()!!"))
 );
@@ -37,7 +36,6 @@ int test_pass_closed_file_to_functions()
     (!strcmp(input_file_name(file_list), "NO FILE OPEN!!")) &&
     (input_file_line(file_list) == 0) &&
     (input_file_line_position(file_list) == 0) &&
-    (read_7bit_char_from_input_file(file_list) == CHAR_STREAM_EOF) &&
     (read_utf8_from_input_file(file_list) == CHAR_STREAM_EOF) &&
     (!strcmp(input_file_error_msg(file_list), "NO FILE OPEN!!"))
 );
@@ -60,26 +58,33 @@ int test_read_file1()
 {
     //The three files together read "cat\ndog\nbird\n"<EOF>
 
-/*    int ch = read_7bit_char_from_input_file(file_list);
+    //The three read tests should probably be broken up into more tests
+    //so I don't have to uncomment this block everytime I touch the code for
+    //line and position numbers
+
+/*    int ch = read_utf8_from_input_file(file_list);
     while(ch != CHAR_STREAM_EOF)
     {
-        printf("File: %s [%d,%d] = %d\n", input_file_name(file_list), input_file_line(file_list), input_file_line_position(file_list), ch);
-        ch = read_7bit_char_from_input_file(file_list);
+        printf("File: %s [%d,%d] = %d\n", input_file_name(file_list),
+               input_file_line(file_list),
+               input_file_line_position(file_list), ch);
+        ch = read_utf8_from_input_file(file_list);
     }
     return 0; */
+
     return
 (
-    (read_7bit_char_from_input_file(file_list) == 'c') &&
+    (read_utf8_from_input_file(file_list) == 'c') &&
     (!strcmp(input_file_name(file_list), "input_file1.txt")) &&
     (input_file_line(file_list) == 1) &&
     (input_file_line_position(file_list) == 1) &&
-    (read_7bit_char_from_input_file(file_list) == 'a') &&
-    (read_7bit_char_from_input_file(file_list) == 't') &&
+    (read_utf8_from_input_file(file_list) == 'a') &&
+    (read_utf8_from_input_file(file_list) == 't') &&
     (input_file_line(file_list) == 1) &&
     (input_file_line_position(file_list) == 3) &&
-    (read_7bit_char_from_input_file(file_list) == '\n') &&
+    (read_utf8_from_input_file(file_list) == '\n') &&
     (input_file_line(file_list) == 2) &&
-    (input_file_line_position(file_list) == 1)
+    (input_file_line_position(file_list) == 0)
 );
 
 }
@@ -98,28 +103,29 @@ int test_read_file2()
     (input_file_line_position(file_list) == 3) &&
     (read_utf8_from_input_file(file_list) == '\n') &&
     (input_file_line(file_list) == 2) &&
-    (input_file_line_position(file_list) == 1)
+    (input_file_line_position(file_list) == 0)
 );
 
 }
 
 int test_read_file3()
 {
+    //This file has an escaped newline in the middle of the word bird
     return
 (
-    (read_7bit_char_from_input_file(file_list) == 'b') &&
+    (read_utf8_from_input_file(file_list) == 'b') &&
     (!strcmp(input_file_name(file_list), "input_file3.txt")) &&
     (input_file_line(file_list) == 1) &&
     (input_file_line_position(file_list) == 1) &&
-    (read_7bit_char_from_input_file(file_list) == 'i') &&
-    (read_7bit_char_from_input_file(file_list) == 'r') &&
-    (read_7bit_char_from_input_file(file_list) == 'd') &&
+    (read_utf8_from_input_file(file_list) == 'i') &&
+    (read_utf8_from_input_file(file_list) == 'r') &&
+    (read_utf8_from_input_file(file_list) == 'd') &&
     (input_file_line(file_list) == 1) &&
     (input_file_line_position(file_list) == 4) &&
-    (read_7bit_char_from_input_file(file_list) == '\n') &&
+    (read_utf8_from_input_file(file_list) == '\n') &&
     (input_file_line(file_list) == 2) &&
-    (input_file_line_position(file_list) == 1) &&
-    (read_7bit_char_from_input_file(file_list) == CHAR_STREAM_EOF)
+    (input_file_line_position(file_list) == 0) &&
+    (read_utf8_from_input_file(file_list) == CHAR_STREAM_EOF)
 );
 
 }

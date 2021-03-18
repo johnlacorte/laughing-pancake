@@ -20,7 +20,7 @@ int test_no_file()
 
     return
 (
-    (return_value == pop_7bit_char(&good_file)) &&
+    (return_value == pop_utf8(&good_file)) &&
     (return_value == CHAR_STREAM_FAILED_TO_OPEN)
 );
 
@@ -37,12 +37,12 @@ int test_good_read_hello()
 {
     return
 (
-    (pop_7bit_char(&good_file) == 'h') &&
-    (pop_7bit_char(&good_file) == 'e') &&
-    (pop_7bit_char(&good_file) == 'l') &&
-    (pop_7bit_char(&good_file) == 'l') &&
-    (pop_7bit_char(&good_file) == 'o') &&
-    (pop_7bit_char(&good_file) == ' ')
+    (pop_utf8(&good_file) == 'h') &&
+    (pop_utf8(&good_file) == 'e') &&
+    (pop_utf8(&good_file) == 'l') &&
+    (pop_utf8(&good_file) == 'l') &&
+    (pop_utf8(&good_file) == 'o') &&
+    (pop_utf8(&good_file) == ' ')
 ); 
 
 }
@@ -76,20 +76,13 @@ int test_good_read_EOF()
     return (pop_utf8(&good_file) == CHAR_STREAM_EOF);
 }
 
-int test_good_push_char()
-{
-    push_7bit_char(&good_file, 'z');
-
-    return (pop_7bit_char(&good_file) == 'z');
-}
-
 int test_good_close_file()
 {
     close_char_stream(&good_file);
 
     return
 (
-    (pop_7bit_char(&good_file) == CHAR_STREAM_FILE_CLOSED) &&
+    (pop_byte(&good_file) == CHAR_STREAM_FILE_CLOSED) &&
     (pop_utf8(&good_file) == CHAR_STREAM_FILE_CLOSED)
 );
 
@@ -105,14 +98,16 @@ int test_open_bad()
     return (return_value == CHAR_STREAM_OK);
 }
 
-int test_bad_pop_7bit()
+int test_bad_utf8_bad_initial_byte()
 {
-    //0xff
+    //0x80
+    int return_value = pop_utf8(&bad_file);
+    char *msg = char_stream_error_msg(&bad_file);
 
     return
 (
-    (pop_7bit_char(&bad_file) == CHAR_STREAM_READ_FAILED) &&
-    (!strcmp(char_stream_error_msg(&bad_file), "Read byte > 127 reading 7bit character."))
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "UTF8 sequence starts with invalid byte.")))
 );
 
 }
@@ -122,24 +117,7 @@ int test_char_stream_reset()
     //0x65
     char_stream_reset(&bad_file);
 
-    return (pop_7bit_char(&bad_file) == 0x65);
-}
-
-int test_bad_utf8_bad_initial_byte()
-{
-    //0x80 0x80
-    int return_value = pop_utf8(&bad_file);
-    char *msg = char_stream_error_msg(&bad_file);
-    char_stream_reset(&bad_file);
-    pop_utf8(&bad_file);
-    char_stream_reset(&bad_file);
-
-    return
-(
-    (return_value == CHAR_STREAM_READ_FAILED) &&
-    ((!strcmp(msg, "UTF8 sequence starts with invalid byte.")))
-);
-
+    return (pop_utf8(&bad_file) == 0x65);
 }
 
 int test_first_character_in_two_character_sequence_padded()
@@ -180,8 +158,7 @@ int test_second_character_padded()
     int return_value = pop_utf8(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
     char_stream_reset(&bad_file);
-    pop_7bit_char(&bad_file);
-    char_stream_reset(&bad_file);
+    pop_byte(&bad_file);
 
     return
 (
@@ -235,7 +212,7 @@ int test_bad_utf8_eof_in_sequence()
 }
 
 //Number Of Tests To Run
-#define NUMBER_OF_TESTS 18
+#define NUMBER_OF_TESTS 16
 
 // Array Of Test Descriptions And Test Function Pointers
 test_t tests[NUMBER_OF_TESTS] = 
@@ -246,12 +223,10 @@ test_t tests[NUMBER_OF_TESTS] =
     {"Reading \"привет\"", test_good_read_privet},
     {"Reading \"你好\"", test_good_read_ni_hao},
     {"Reading EOF", test_good_read_EOF},
-    {"Pushing char to stream", test_good_push_char},
     {"Close file", test_good_close_file},
     {"Opening \"bad_utf8.txt\"", test_open_bad},
-    {"Trigger error \"Read byte > 127 reading 7bit character.\"", test_bad_pop_7bit},
-    {"char_stream reset", test_char_stream_reset},
     {"Trigger error \"UTF8 sequence starts with invalid byte.\"", test_bad_utf8_bad_initial_byte},
+    {"char_stream reset", test_char_stream_reset},
     {"Trigger error \"Unicode codepoint is padded (first byte of two).\"", test_first_character_in_two_character_sequence_padded},
     {"Trigger error \"Invalid byte in UTF8 sequence.\"", test_bad_utf8_bad_additional_byte},
     {"Trigger error \"Unicode codepoint is padded (second byte).\"", test_second_character_padded},

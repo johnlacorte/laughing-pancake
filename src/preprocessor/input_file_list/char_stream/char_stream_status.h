@@ -11,4 +11,8 @@
 #endif
 
 /*** end of file "char_stream_status.h" ***/
- 
+
+/* Notes
+I moved these to a file seperate from char_stream.h to help in building error
+messages with line numbers where necessary a couple steps ahead.
+*/ 

@@ -50,62 +50,6 @@ void close_char_stream(char_stream_t *stream)
     stream->error_msg = "File is closed.";
 }
 
-void push_7bit_char(char_stream_t *stream, int ch)
-{
-    if(stream->status == CHAR_STREAM_EOF)
-    {
-        stream->status = CHAR_STREAM_OK;
-    }
-
-    if(stream->status >= CHAR_STREAM_OK)
-    {
-        if(ch < 0 || ch > 127)
-        {
-            stream->status = CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG;
-            stream->error_msg = "Character pushed to char_stream was out of range.";
-        }
-
-        else
-        {
-            ungetc(ch, stream->fp);
-        }
-    }
-}
-
-int pop_7bit_char(char_stream_t *stream)
-{
-    if(stream->status < 0)
-    {
-        return stream->status;
-    }
-
-    else
-    {
-        int ch = fgetc(stream->fp);
-        if(ch > 127)
-        {
-            stream->status = CHAR_STREAM_READ_FAILED;
-            stream->error_msg = "Read byte > 127 reading 7bit character.";
-            return stream->status;
-        }
-
-        else
-        {
-            if(ch == EOF)
-            {
-                stream->status = CHAR_STREAM_EOF;
-                stream->error_msg = "Normal EOF reached.";
-                return stream->status;
-            }
-
-            else
-            {
-                return ch;
-            }
-        }
-    }
-}
-
 int32_t pop_utf8(char_stream_t *stream)
 {
     if(stream->status < 0)
@@ -223,6 +167,27 @@ char *char_stream_error_msg(char_stream_t *stream)
     return stream->error_msg;
 }
 
+int pop_byte(char_stream_t *stream)
+{
+    if(stream->status < 0)
+    {
+        return stream->status;
+    }
+
+    int ch = fgetc(stream->fp);
+    if(ch == EOF)
+    {
+        stream->status = CHAR_STREAM_EOF;
+        stream->error_msg = "Normal EOF reached.";
+        return stream->status;
+    }
+
+    else
+    {
+        return ch;
+    }
+}
+
 void char_stream_reset(char_stream_t *stream)
 {
     stream->status = CHAR_STREAM_OK;
@@ -231,3 +196,6 @@ void char_stream_reset(char_stream_t *stream)
 
 /* --- end of file "char_stream.c" --- */
 
+/* Notes
+There's probably things I could do to make pop_utf8() easier to read
+*/

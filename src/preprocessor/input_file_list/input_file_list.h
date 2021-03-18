@@ -1,6 +1,16 @@
 #ifndef INPUT_FILE_LIST_H
 #define INPUT_FILE_LIST_H
 
+//These constants are either going to be expanded and put into use to add
+//additional features or just deleted. Looking things like this helps me come
+//up with good names.
+/*#define INPUT_FILE_OK 0
+#define INPUT_FILE_EOF -1
+#define INPUT_FILE_FAILED_TO_OPEN -2
+#define INPUT_FILE_PREPROC_DID_SOMETHING_WRONG -3
+#define INPUT_FILE_READ_FAILED -4
+#define INPUT_FILE_FILE_CLOSED -5 */
+
 //A pointer to the state allocated at runtime
 typedef void* input_file_list_t;
 
@@ -30,14 +40,6 @@ int input_file_line(input_file_list_t file_list);
 //Returns position in current line in current file
 int input_file_line_position(input_file_list_t file_list);
 
-//Push a 7bit character back to the stream changes status to
-//CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG if you try to give it an int bigger
-//than 7 bits
-void push_7bit_char_to_input_file(input_file_list_t file_list, int ch);
-
-//Returns 7bit character or EOF or error
-int read_7bit_char_from_input_file(input_file_list_t file_list);
-
 //Decodes Unicode codepoint and returns that or negative value for EOF or error
 int32_t read_utf8_from_input_file(input_file_list_t file_list);
 
@@ -48,3 +50,13 @@ char *input_file_error_msg(input_file_list_t file_list);
 
 /*** end of file "input_file_list.h" ***/
 
+/* Notes
+If input_file_list ends up handling escape sequences other than escaped
+newlines it might make more sense to have its own status and set of constants
+to go with them instead of just passing the char_stream status along. Having
+its own set of constants for return values makes the documentation in my
+imagination look neater as well.
+
+Position in line is currently the number of codepoints. Better than number of
+bytes but not as good as number of graphemes. It's good enough for most people. 
+*/

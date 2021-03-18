@@ -23,6 +23,7 @@ typedef struct
     int           position;
     char          *short_filename;
     char          long_filename[PATH_MAX];
+    int32_t       return_on_next_read; //used to peek ahead for escaped newlines
 } input_file_t;
 
 input_file_list_t new_input_file_list()
@@ -156,55 +157,7 @@ int input_file_line_position(input_file_list_t file_list)
     return 0;
 }
 
-void push_7bit_char_to_input_file(input_file_list_t file_list, int ch)
-{
-    if(file_list != NULL)
-    {
-        input_file_t *input_file = get_file_list_head(file_list);
-        if(input_file != NULL)
-        {
-            push_7bit_char(&input_file->stream, ch);
-            input_file->position--;
-        }
-    }
-}
-
-int read_7bit_char_from_input_file(input_file_list_t file_list)
-{
-    if(file_list != NULL)
-    {
-        input_file_t *input_file = get_file_list_head(file_list);
-        while(input_file != NULL)
-        {
-            int ch = pop_7bit_char(&input_file->stream);
-            if(ch != CHAR_STREAM_EOF)
-            {
-                if(ch == '\n')
-                {
-                    input_file->line++;
-                    input_file->position = 1;
-                }
-         
-                else
-                {
-                    input_file->position++;
-                }
-        
-                return ch;
-            }
-
-            else
-            {
-                pop_input_file(file_list);
-                input_file = get_file_list_head(file_list);
-            }
-        }
-
-        return CHAR_STREAM_EOF;
-    }
-
-    return CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG;
-}
+static int32_t remove_escaped_newlines(input_file_t *input_file);
 
 int32_t read_utf8_from_input_file(input_file_list_t file_list)
 {
@@ -213,13 +166,13 @@ int32_t read_utf8_from_input_file(input_file_list_t file_list)
         input_file_t *input_file = get_file_list_head(file_list);
         while(input_file != NULL)
         {
-            int32_t ch = pop_utf8(&input_file->stream);
+            int32_t ch = remove_escaped_newlines(input_file);
             if(ch != CHAR_STREAM_EOF)
             {
                 if(ch == '\n')
                 {
                     input_file->line++;
-                    input_file->position = 1;
+                    input_file->position = 0;
                 }
         
                 else
@@ -262,7 +215,7 @@ char *input_file_error_msg(input_file_list_t file_list)
     return "NULL POINTER PASSED TO input_file_error_msg()!!";
 }
 
-// Local functions
+/*    ---- Local functions ----    */
 
 //Returns true/false to indicate success/failure, tries to get the full path to
 //a file and copies it to the input_file_t's long_filename array
@@ -272,6 +225,8 @@ static int get_full_path_to_file(input_file_t *new, char *filename);
 //long_filename array pointing it to the start of just the file name
 static void set_short_file_name(input_file_t *new);
 
+#define RETURN_ON_NEXT_READ_IS_EMPTY -6
+
 static input_file_t *new_input_file(char *filename)
 {
     input_file_t *new = malloc(sizeof(input_file_t));
@@ -280,6 +235,7 @@ static input_file_t *new_input_file(char *filename)
         init_char_stream(&new->stream);
         new->line = 1;
         new->position = 0;
+        new->return_on_next_read = RETURN_ON_NEXT_READ_IS_EMPTY;
         if(get_full_path_to_file(new, filename))
         {
             set_short_file_name(new);
@@ -317,7 +273,7 @@ static void add_input_file_to_tail(input_file_list_t file_list, input_file_t *ne
 
     else
     {
-        //This is the first input file added to list
+        //This is for the first input file added to list
         set_file_list_head(file_list, new);
     }
 
@@ -334,7 +290,7 @@ static void add_input_file_to_head(input_file_list_t file_list, input_file_t *ne
 
     else
     {
-        //This is the first input file added to list
+        //This is for the first input file added to list
         set_file_list_tail(file_list, new);
     }
 
@@ -349,8 +305,6 @@ static input_file_t *get_file_list_head(input_file_list_t file_list)
 
 static void pop_input_file(input_file_list_t file_list)
 {
-    //make sure stream is closed
-    //Do I need to do something different for last in list?
     input_file_t *head = get_file_list_head(file_list);
     input_file_t *next = head->next;
     if(next == NULL)
@@ -359,9 +313,37 @@ static void pop_input_file(input_file_list_t file_list)
     }
 
     set_file_list_head(file_list, next);
+    close_char_stream(&head->stream);
     free(head);
 }
 
+//Places character in temporary holder
+static void set_return_on_next_read(input_file_t *input_file, int32_t ch);
+
+//Reads from stream and converts different newlines to \n
+static int32_t convert_newlines(input_file_t *input_file);
+
+static int32_t remove_escaped_newlines(input_file_t *input_file)
+{
+    int32_t maybe_backslash = convert_newlines(input_file);
+    while(maybe_backslash == '\\')
+    {
+        int32_t maybe_newline = convert_newlines(input_file);
+        if(maybe_newline == '\n')
+        {
+            maybe_backslash = convert_newlines(input_file);
+        }
+
+        else
+        {
+            set_return_on_next_read(input_file,  maybe_newline);
+        }
+    }
+
+    return maybe_backslash;
+}
+
+//This function needs different versions for different OSes
 static int get_full_path_to_file(input_file_t *new, char *filename)
 {
     return (realpath(filename, new->long_filename) == new->long_filename);
@@ -402,5 +384,67 @@ static void set_file_list_head(input_file_list_t file_list, input_file_t *new)
     list[0] = new;
 }
 
+static void set_return_on_next_read(input_file_t *input_file, int32_t ch)
+{
+    if(input_file->return_on_next_read == RETURN_ON_NEXT_READ_IS_EMPTY)
+    {
+        input_file->return_on_next_read = ch;
+    }
+
+    else
+    {
+        fprintf(stderr, "Oops I thought one temporary variable would be enough.");
+        exit(1);
+    }
+}
+
+//Reads from temporary holder or from stream
+static int32_t read_next(input_file_t *input_file);
+
+static int32_t convert_newlines(input_file_t *input_file)
+{
+    // convert \r and \r\n to \n
+    int32_t maybe_carriage_return = read_next(input_file);
+    if(maybe_carriage_return == '\r')
+    {
+        int32_t maybe_line_feed = read_next(input_file);
+        if(maybe_line_feed != '\n')
+        {
+            set_return_on_next_read(input_file, maybe_line_feed);
+        }
+
+        return '\n';
+    }
+
+    return maybe_carriage_return;
+}
+
+static int32_t read_next(input_file_t *input_file)
+{
+    int32_t ch = input_file->return_on_next_read;
+    if(ch == RETURN_ON_NEXT_READ_IS_EMPTY)
+    {
+        ch = pop_utf8(&input_file->stream);
+    }
+
+    else
+    {
+        input_file->return_on_next_read = RETURN_ON_NEXT_READ_IS_EMPTY;
+    }
+
+    return ch;
+}
+
 /*** end of file "input_file_list.c" ***/
 
+/*Notes
+There's not really a standard way to get the full path to a file. I am
+currently using realpath() which is a part of stdlib on BSD systems
+but this means I need to compile this file with a different flag from the rest
+of the source files. I don't think I would need to do this on Cygwin or Linux
+if I instead used getcwd() from unistd but then I would have to deal with
+gluing together the directory with whatever got passed in from the command
+line and dealing with dots and things. Windows has GetFullPathName functions
+(windows.h/fileapi.h/kernel32.dll) but I don't know what the situation is on
+Mac, Android, BeOS, DOS, etc.
+*/
