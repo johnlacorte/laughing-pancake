@@ -13,29 +13,36 @@ typedef struct
     FILE    *fp;
     int     status;
     char    *error_msg;
+    int32_t last_read;
+    int     what_to_return_next;
+    int32_t next_read;
 } char_stream_t;
 
 //Call this function before using a char_stream_t
 void init_char_stream(char_stream_t *stream);
 
 //filename is full path returns CHAR_STREAM_OK or CHAR_STREAM_FAILED_TO_OPEN
+//or an error for bad utf8 because it peeks ahead to look for BOM
 int open_char_stream(char_stream_t *stream, char *filename);
 
 //Returns true/false
-int is_char_stream_open(char_stream_t *stream);
+bool is_char_stream_open(char_stream_t *stream);
 
 //Closes char_stream
 void close_char_stream(char_stream_t *stream);
 
-//Decodes Unicode codepoint and returns that or negative value for EOF or error
-int32_t pop_utf8(char_stream_t *stream);
+//Returns a unicode codepoint or negative number for EOF or error. The
+//codepoint returned is after converting newlines to \n, removing escaped
+//newlines and converting unicode escape sequences. Other escape sequences
+//are passed on as they are.
+int32_t read_utf8_from_char_stream(char_stream_t *stream);
 
 //Returns a string explaining the status/errors in more detail
 char *char_stream_error_msg(char_stream_t *stream);
 
 //Returns next byte of the stream mainly just to eat remaining bytes of a bad
 //utf8 sequence in tests
-int pop_byte(char_stream_t *stream);
+int pop_byte_from_char_stream(char_stream_t *stream);
 
 //Resets status to CHAR_STREAM_OK so you can easily test all the errors can
 //be triggered

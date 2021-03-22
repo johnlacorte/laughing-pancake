@@ -1,6 +1,8 @@
 //For PATH_MAX
 #include <limits.h>
 
+#include <stdbool.h>
+
 //To return an int32_t for Unicode codepoints
 #include <stdint.h>
 
@@ -23,7 +25,6 @@ typedef struct
     int           position;
     char          *short_filename;
     char          long_filename[PATH_MAX];
-    int32_t       return_on_next_read; //used to peek ahead for escaped newlines
 } input_file_t;
 
 input_file_list_t new_input_file_list()
@@ -157,8 +158,6 @@ int input_file_line_position(input_file_list_t file_list)
     return 0;
 }
 
-static int32_t remove_escaped_newlines(input_file_t *input_file);
-
 int32_t read_utf8_from_input_file(input_file_list_t file_list)
 {
     if(file_list != NULL)
@@ -166,7 +165,7 @@ int32_t read_utf8_from_input_file(input_file_list_t file_list)
         input_file_t *input_file = get_file_list_head(file_list);
         while(input_file != NULL)
         {
-            int32_t ch = remove_escaped_newlines(input_file);
+            int32_t ch = read_utf8_from_char_stream(&input_file->stream);
             if(ch != CHAR_STREAM_EOF)
             {
                 if(ch == '\n')
@@ -235,7 +234,6 @@ static input_file_t *new_input_file(char *filename)
         init_char_stream(&new->stream);
         new->line = 1;
         new->position = 0;
-        new->return_on_next_read = RETURN_ON_NEXT_READ_IS_EMPTY;
         if(get_full_path_to_file(new, filename))
         {
             set_short_file_name(new);
@@ -317,32 +315,6 @@ static void pop_input_file(input_file_list_t file_list)
     free(head);
 }
 
-//Places character in temporary holder
-static void set_return_on_next_read(input_file_t *input_file, int32_t ch);
-
-//Reads from stream and converts different newlines to \n
-static int32_t convert_newlines(input_file_t *input_file);
-
-static int32_t remove_escaped_newlines(input_file_t *input_file)
-{
-    int32_t maybe_backslash = convert_newlines(input_file);
-    while(maybe_backslash == '\\')
-    {
-        int32_t maybe_newline = convert_newlines(input_file);
-        if(maybe_newline == '\n')
-        {
-            maybe_backslash = convert_newlines(input_file);
-        }
-
-        else
-        {
-            set_return_on_next_read(input_file,  maybe_newline);
-        }
-    }
-
-    return maybe_backslash;
-}
-
 //This function needs different versions for different OSes
 static int get_full_path_to_file(input_file_t *new, char *filename)
 {
@@ -382,57 +354,6 @@ static void set_file_list_head(input_file_list_t file_list, input_file_t *new)
 {
     input_file_t **list = (input_file_t**)file_list;
     list[0] = new;
-}
-
-static void set_return_on_next_read(input_file_t *input_file, int32_t ch)
-{
-    if(input_file->return_on_next_read == RETURN_ON_NEXT_READ_IS_EMPTY)
-    {
-        input_file->return_on_next_read = ch;
-    }
-
-    else
-    {
-        fprintf(stderr, "Oops I thought one temporary variable would be enough.");
-        exit(1);
-    }
-}
-
-//Reads from temporary holder or from stream
-static int32_t read_next(input_file_t *input_file);
-
-static int32_t convert_newlines(input_file_t *input_file)
-{
-    // convert \r and \r\n to \n
-    int32_t maybe_carriage_return = read_next(input_file);
-    if(maybe_carriage_return == '\r')
-    {
-        int32_t maybe_line_feed = read_next(input_file);
-        if(maybe_line_feed != '\n')
-        {
-            set_return_on_next_read(input_file, maybe_line_feed);
-        }
-
-        return '\n';
-    }
-
-    return maybe_carriage_return;
-}
-
-static int32_t read_next(input_file_t *input_file)
-{
-    int32_t ch = input_file->return_on_next_read;
-    if(ch == RETURN_ON_NEXT_READ_IS_EMPTY)
-    {
-        ch = pop_utf8(&input_file->stream);
-    }
-
-    else
-    {
-        input_file->return_on_next_read = RETURN_ON_NEXT_READ_IS_EMPTY;
-    }
-
-    return ch;
 }
 
 /*** end of file "input_file_list.c" ***/

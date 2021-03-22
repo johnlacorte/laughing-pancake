@@ -70,7 +70,7 @@ int test_read_file1()
                input_file_line_position(file_list), ch);
         ch = read_utf8_from_input_file(file_list);
     }
-    return 0; */
+    return 0;*/
 
     return
 (
