@@ -1,11 +1,11 @@
-#include "../test_lib/test_lib.h"
-
 // Standard Library Header Files
 
 #include <stdbool.h>
 // because char_stream_t has a FILE pointer in it.
 #include <stdio.h>
 #include <string.h>
+
+#include "../test_lib/test_lib.h"
 
 // Module Header Files
 #include "../../src/preprocessor/input_file_list/char_stream/char_stream_status.h"
@@ -16,7 +16,7 @@
 // Global variables for the next couple functions.
 char_stream_t good_file;
 
-int test_no_file()
+bool test_no_file()
 {
     int return_value = open_char_stream(&good_file, "nonexisting.txt");
 
@@ -28,14 +28,24 @@ int test_no_file()
 
 }
 
-int test_open_good()
+/* good_utf8.txt
+<BOM>!hello привет 你好\r\r\n
+*/
+
+bool test_open_good()
 {
+    init_char_stream(&good_file);
     int return_value = open_char_stream(&good_file, "good_utf8.txt");
 
     return (return_value == CHAR_STREAM_OK);
 }
 
-int test_good_read_hello()
+bool test_byte_order_mark_skipped()
+{
+    return (read_utf8_from_char_stream(&good_file) == '!');
+}
+
+bool test_good_read_hello()
 {
     return
 (
@@ -48,7 +58,8 @@ int test_good_read_hello()
 ); 
 
 }
-int test_good_read_privet()
+
+bool test_good_read_privet()
 {
     return
 (
@@ -63,7 +74,7 @@ int test_good_read_privet()
 
 }
 
-int test_good_read_ni_hao()
+bool test_good_read_ni_hao()
 {
     return
 (
@@ -73,12 +84,22 @@ int test_good_read_ni_hao()
 
 }
 
-int test_good_read_EOF()
+bool test_cr()
+{
+    return (read_utf8_from_char_stream(&good_file) == '\n');
+}
+
+bool test_crlf()
+{
+    return (read_utf8_from_char_stream(&good_file) == '\n');
+}
+
+bool test_good_read_EOF()
 {
     return (read_utf8_from_char_stream(&good_file) == CHAR_STREAM_EOF);
 }
 
-int test_good_close_file()
+bool test_good_close_file()
 {
     close_char_stream(&good_file);
 
@@ -90,11 +111,27 @@ int test_good_close_file()
 
 }
 
+/* bad_utf8.txt
+65(normal 7bit character)
+EF BB BF(BOM found in second read from file)
+65(normal 7bit character to check stream error was reset)
+80(bad initial byte)
+C0 80(a two byte sequence starting with C0 is padded because all the bits read
+from the first byte are 0 and the six bits in the second byte could have just
+stored in a single byte)
+C1 20(first byte is okay but second is not)
+E0 80 BF(all bits from first and second byte in three byte sequence are 0)
+ED A0 80(utf16 surrogate)
+F7 BF BF BF(too large codepoint)
+C1(first byte okay followed by EOF)
+*/
+
 // Global variables for the next couple functions.
 char_stream_t bad_file;
 
-int test_open_bad()
+bool test_open_bad()
 {
+    init_char_stream(&bad_file);
     int return_value = open_char_stream(&bad_file, "bad_utf8.txt");
     //opening a char_stream reads the first character to check for BOM
     //a bad character will set the status to an error before it is returned
@@ -104,7 +141,28 @@ int test_open_bad()
     return (return_value == CHAR_STREAM_OK);
 }
 
-int test_bad_utf8_bad_initial_byte()
+bool test_byte_order_mark_error()
+{
+    int return_value = read_utf8_from_char_stream(&bad_file);
+    char *msg = char_stream_error_msg(&bad_file);
+
+    return
+(
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "Byte Order Marker read in file.")))
+);
+
+}
+
+bool test_char_stream_reset()
+{
+    //0x65
+    char_stream_reset(&bad_file);
+
+    return (read_utf8_from_char_stream(&bad_file) == 0x65);
+}
+
+bool test_bad_utf8_bad_initial_byte()
 {
     //0x80
     int return_value = read_utf8_from_char_stream(&bad_file);
@@ -118,22 +176,14 @@ int test_bad_utf8_bad_initial_byte()
 
 }
 
-int test_char_stream_reset()
-{
-    //0x65
-    char_stream_reset(&bad_file);
-
-    return (read_utf8_from_char_stream(&bad_file) == 0x65);
-}
-
-int test_first_character_in_two_character_sequence_padded()
+bool test_first_byte_in_two_byte_sequence_padded()
 {
     //0xc0 0x80
+    char_stream_reset(&bad_file);
     int return_value = read_utf8_from_char_stream(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
     char_stream_reset(&bad_file);
     read_utf8_from_char_stream(&bad_file);
-    char_stream_reset(&bad_file);
 
     return
 (
@@ -143,12 +193,12 @@ int test_first_character_in_two_character_sequence_padded()
 
 }
 
-int test_bad_utf8_bad_additional_byte()
+bool test_bad_utf8_bad_additional_byte()
 {
     //0xc1 0x20
+    char_stream_reset(&bad_file);
     int return_value = read_utf8_from_char_stream(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
-    char_stream_reset(&bad_file);
 
     return
 (
@@ -158,9 +208,10 @@ int test_bad_utf8_bad_additional_byte()
 
 }
 
-int test_second_character_padded()
+bool test_second_byte_padded()
 {
     //0xeo 0x80 0xbf
+    char_stream_reset(&bad_file);
     int return_value = read_utf8_from_char_stream(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
     char_stream_reset(&bad_file);
@@ -173,12 +224,12 @@ int test_second_character_padded()
 );
 }
 
-int test_read_utf16_surrogate()
+bool test_read_utf16_surrogate()
 {
     // 0xed 0xa0 0x80
+    char_stream_reset(&bad_file);
     int return_value = read_utf8_from_char_stream(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
-    char_stream_reset(&bad_file);
 
     return
 (
@@ -188,12 +239,12 @@ int test_read_utf16_surrogate()
 
 }
 
-int test_codepoint_out_of_range()
+bool test_codepoint_out_of_range()
 {
     //0xf7 0xbf 0xbf 0xbf
+    char_stream_reset(&bad_file);
     int return_value = read_utf8_from_char_stream(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
-    char_stream_reset(&bad_file);
 
     return
 (
@@ -203,11 +254,13 @@ int test_codepoint_out_of_range()
 
 }
 
-int test_bad_utf8_eof_in_sequence()
+bool test_bad_utf8_eof_in_sequence()
 {
     //0xc1 <EOF>
+    char_stream_reset(&bad_file);
     int return_value = read_utf8_from_char_stream(&bad_file);
     char *msg = char_stream_error_msg(&bad_file);
+    close_char_stream(&bad_file);
 
     return
 (
@@ -217,28 +270,136 @@ int test_bad_utf8_eof_in_sequence()
 
 }
 
+/*unicode_escapes.txt
+\u{1111} (good escape sequence)
+\u0x80 (0x80 is bad initial byte, this should return that error instead of an escape code error)
+\ua (no open curly)
+\u{g ('g' not a hex digit)
+\u{1234567 (too many hex digits)
+\u{aa (unexpected EOF)
+*/
+
+char_stream_t escapes_file;
+
+bool test_open_escapes_file()
+{
+    init_char_stream(&escapes_file);
+    int return_value = open_char_stream(&escapes_file, "unicode_escapes.txt");
+
+    return (return_value == CHAR_STREAM_OK);
+}
+
+bool test_good_escape_sequence()
+{
+    int return_value = read_utf8_from_char_stream(&escapes_file);
+
+    return (return_value == 0x1111);
+}
+
+bool test_error_passthrough_in_escape()
+{
+    //0x80
+    int return_value = read_utf8_from_char_stream(&escapes_file);
+    char *msg = char_stream_error_msg(&escapes_file);
+
+    return
+(
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "UTF8 sequence starts with invalid byte.")))
+);
+
+}
+
+bool test_no_open_curly_in_escape()
+{
+    char_stream_reset(&escapes_file);
+    int return_value = read_utf8_from_char_stream(&escapes_file);
+    char *msg = char_stream_error_msg(&escapes_file);
+
+    return
+(
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "Expected \'{\' in unicode escape sequence.")))
+);
+
+}
+
+bool test_not_hex_digit_in_escape()
+{
+    char_stream_reset(&escapes_file);
+    int return_value = read_utf8_from_char_stream(&escapes_file);
+    char *msg = char_stream_error_msg(&escapes_file);
+
+    return
+(
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "Expected hex digit in unicode escape sequence.")))
+);
+
+}
+
+bool test_too_long_escape()
+{
+    char_stream_reset(&escapes_file);
+    int return_value = read_utf8_from_char_stream(&escapes_file);
+    char *msg = char_stream_error_msg(&escapes_file);
+
+    return
+(
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "A maximum of 6 hex digits are allowed in unicode escape sequences.")))
+);
+
+}
+
+bool test_eof_in_escape()
+{
+    char_stream_reset(&escapes_file);
+    int return_value = read_utf8_from_char_stream(&escapes_file);
+    char *msg = char_stream_error_msg(&escapes_file);
+    close_char_stream(&escapes_file);
+
+    return
+(
+    (return_value == CHAR_STREAM_READ_FAILED) &&
+    ((!strcmp(msg, "Unexpected EOF in unicode escape sequence.")))
+);
+
+}
+
 //Number Of Tests To Run
-#define NUMBER_OF_TESTS 16
+#define NUMBER_OF_TESTS 27
 
 // Array Of Test Descriptions And Test Function Pointers
 test_t tests[NUMBER_OF_TESTS] = 
 {
     {"File not found error", test_no_file},
     {"Opening \"good_utf8.txt\"", test_open_good},
+    {"Byte order mark detected", test_byte_order_mark_skipped},
     {"Reading \"hello\"", test_good_read_hello},
     {"Reading \"привет\"", test_good_read_privet},
     {"Reading \"你好\"", test_good_read_ni_hao},
+    {"Convert \\r to \\n", test_cr},
+    {"Convert \\r\\n to \\n", test_crlf},
     {"Reading EOF", test_good_read_EOF},
     {"Close file", test_good_close_file},
     {"Opening \"bad_utf8.txt\"", test_open_bad},
-    {"Trigger error \"UTF8 sequence starts with invalid byte.\"", test_bad_utf8_bad_initial_byte},
+    {"Trigger error \"Byte Order Marker read in file.\"", test_byte_order_mark_error},
     {"char_stream reset", test_char_stream_reset},
-    {"Trigger error \"Unicode codepoint is padded (first byte of two).\"", test_first_character_in_two_character_sequence_padded},
+    {"Trigger error \"UTF8 sequence starts with invalid byte.\"", test_bad_utf8_bad_initial_byte},
+    {"Trigger error \"Unicode codepoint is padded (first byte of two).\"", test_first_byte_in_two_byte_sequence_padded},
     {"Trigger error \"Invalid byte in UTF8 sequence.\"", test_bad_utf8_bad_additional_byte},
-    {"Trigger error \"Unicode codepoint is padded (second byte).\"", test_second_character_padded},
+    {"Trigger error \"Unicode codepoint is padded (second byte).\"", test_second_byte_padded},
     {"Trigger error \"Unicode codepoint is UTF16 surrogate\"", test_read_utf16_surrogate},
     {"Trigger error \"Unicode codepoint out of range.\"", test_codepoint_out_of_range},
-    {"Trigger error \"Unexpected EOF in UTF8 sequence.\"", test_bad_utf8_eof_in_sequence}
+    {"Trigger error \"Unexpected EOF in UTF8 sequence.\"", test_bad_utf8_eof_in_sequence},
+    {"Opening \"unicode_escapes.txt\"", test_open_escapes_file},
+    {"Reading \\u{1111}", test_good_escape_sequence},
+    {"Trigger error \"UTF8 sequence starts with invalid byte.\"", test_error_passthrough_in_escape},
+    {"Trigger error \"Expected \'{\' in unicode escape sequence.\"", test_no_open_curly_in_escape},
+    {"Trigger error \"Expected hex digit in unicode escape sequence.\"", test_not_hex_digit_in_escape},
+    {"Trigger error \"A maximum of 6 hex digits are allowed in unicode escape sequences.\"", test_too_long_escape},
+    {"Trigger error \"Unexpected EOF in unicode escape sequence.\"", test_eof_in_escape}
 };
 
 int main()
