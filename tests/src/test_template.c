@@ -1,7 +1,7 @@
-#include "../test_lib/test_lib.h"
-
 // Standard Library Header Files
+#include <stdbool.h>
 
+#include "../test_lib/test_lib.h"
 
 // Module Header Files
 //#include "../../path_to_header_file/header_file.h"
@@ -10,12 +10,12 @@
 
 
 // Test Functions
-int test_one()
+bool test_one()
 {
     return (1 == 1);
 }
 
-int test_two()
+bool test_two()
 {
     return (2 == 2);
 }

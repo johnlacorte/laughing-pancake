@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "test_lib.h"
@@ -9,7 +10,7 @@
 
 int tester(int number_of_tests, test_t *tests, char *test_name)
 {
-    int result = 1;
+    bool result = true;
     printf("\n%s%s:%s\n", FG_YELLOW, test_name, FG_NORMAL);
     for(int i = 0; i < number_of_tests; i++)
     {
