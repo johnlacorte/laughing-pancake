@@ -18,8 +18,12 @@ void init_char_stream(char_stream_t *stream)
 
 #define READ_FROM_NEXT_READ_NEXT 1
 
+//Tries to read a unicode codepoint from an open file
 static int32_t read_utf8(char_stream_t *stream);
 
+//This stores next_ch in a temporary variable. The read_next function will
+//return this first before calling read_utf8 function on the next call to
+//read_next
 static void set_next_read(char_stream_t *stream, int32_t next_ch);
 
 int open_char_stream(char_stream_t *stream, char *filename)
@@ -74,11 +78,16 @@ void close_char_stream(char_stream_t *stream)
     stream->error_msg = "File is closed.";
 }
 
+//Removes escaped newlines and converts unicode escape sequences from the
+//output of a function that converts newlines from the output of a function
+//that reads from a temporary variable or from read_utf8 function
 static int32_t convert_escape_sequences(char_stream_t *stream);
 
 int32_t read_utf8_from_char_stream(char_stream_t *stream)
 {
     int32_t ch = convert_escape_sequences(stream);
+    //open_char_stream() will eat the BOM at the beginning of the file if there
+    //is any, afterwards BOM will generate an error
     if(ch != BYTE_ORDER_MARKER)
     {
         stream->last_read = ch;
@@ -127,6 +136,7 @@ void char_stream_reset(char_stream_t *stream)
 
 /* ----Local Functions---- */
 
+//Checks codepoint returned from read_utf8 or from unicode escape sequences
 static int32_t is_code_point_valid(char_stream_t *stream, int32_t codepoint);
 
 static int32_t read_utf8(char_stream_t *stream)
@@ -237,41 +247,38 @@ static void set_next_read(char_stream_t *stream, int32_t next_ch)
     }
 }
 
+//Converts \r and \r\n newlines to \n
+//These may already be converted but I want to be thorough
 static int32_t convert_newlines(char_stream_t *stream);
 
+//After \u is matched this function is called to read the hex digits and try
+//to return a valid codepoint
 static int32_t read_unicode_escape_sequence(char_stream_t *stream);
 
 static int32_t convert_escape_sequences(char_stream_t *stream)
 {
     int32_t ch = convert_newlines(stream);
-    //Make sure escaped backslash is passed through and all escaped newlines
-    //in a row are removed
-    while((ch == '\\') && (stream->last_read != '\\'))
+    //Make sure escaped backslash is passed through
+    if((ch == '\\') && (stream->last_read != '\\'))
     {
         int32_t next_ch = convert_newlines(stream);
-        if(next_ch == '\n')
+        if(next_ch == 'u')
         {
-            ch = convert_newlines(stream);
+            //A unicode escape sequence is \u{HEXDIGITS}
+            return read_unicode_escape_sequence(stream);
         }
 
         else
         {
-            if(next_ch == 'u')
-            {
-                return read_unicode_escape_sequence(stream);
-            }
-
-            else
-            {
-                set_next_read(stream, next_ch);
-                return ch;
-            }
+            set_next_read(stream, next_ch);
+            return ch;
         }
     }
 
     return ch;
 }
 
+//Returns either the temporary variable of reads from the stream with utf8_read()
 static int32_t read_next(char_stream_t *stream);
 
 static int32_t convert_newlines(char_stream_t *stream)
@@ -294,7 +301,10 @@ static int32_t convert_newlines(char_stream_t *stream)
     }
 }
 
+//Returns the integer value of a hex digits or -1
 static int32_t hex_digit_to_int(int32_t ch);
+
+static int32_t handle_negative_value_in_escape_sequence(char_stream_t *stream, int32_t ch);
 
 static int32_t read_unicode_escape_sequence(char_stream_t *stream)
 {
@@ -302,23 +312,31 @@ static int32_t read_unicode_escape_sequence(char_stream_t *stream)
     int32_t ch = read_utf8(stream);
     if(ch == '{')
     {
-        int hex_counter = 0;
         int32_t codepoint = 0;
         ch = read_utf8(stream);
+        int hex_counter = 1;
         do
         {
-            int32_t hex = hex_digit_to_int(ch);
-            if(hex >= 0)
+            if(ch < 0)
             {
-                hex_counter++;
-                codepoint = (codepoint << 4) + hex;
+                return handle_negative_value_in_escape_sequence(stream, ch);
             }
 
             else
             {
-                stream->status = CHAR_STREAM_READ_FAILED;
-                stream->error_msg = "Expected hex digit in unicode escape sequence.";
-                return stream->status;
+                int32_t hex = hex_digit_to_int(ch);
+                if(hex >= 0)
+                {
+                    hex_counter++;
+                    codepoint = (codepoint << 4) + hex;
+                }
+
+                else
+                {
+                    stream->status = CHAR_STREAM_READ_FAILED;
+                    stream->error_msg = "Expected hex digit in unicode escape sequence.";
+                    return stream->status;
+                }
             }
 
             ch = read_utf8(stream);
@@ -337,11 +355,19 @@ static int32_t read_unicode_escape_sequence(char_stream_t *stream)
         }
     }
 
-    else
+    else //First read from escape sequence not '{'
     {
-        stream->status = CHAR_STREAM_READ_FAILED;
-        stream->error_msg = "Expected \'{\' in unicode escape sequence.";
-        return stream->status;
+        if(ch < 0)
+        {
+            return handle_negative_value_in_escape_sequence(stream, ch);
+        }
+        
+        else
+        {
+            stream->status = CHAR_STREAM_READ_FAILED;
+            stream->error_msg = "Expected \'{\' in unicode escape sequence.";
+            return stream->status;
+        }
     }
 }
 
@@ -392,6 +418,22 @@ static int32_t hex_digit_to_int(int32_t ch)
     }
 
     return -1;
+}
+
+static int32_t handle_negative_value_in_escape_sequence(char_stream_t *stream, int32_t ch)
+{
+    if(ch == CHAR_STREAM_EOF)
+    {
+        stream->status = CHAR_STREAM_READ_FAILED;
+        stream->error_msg = "Unexpected EOF in unicode escape sequence.";
+        return stream->status;
+    }
+
+    else
+    {
+        //Pass on any read_utf8 errors
+        return ch;
+    }
 }
 
 static int32_t is_code_point_valid(char_stream_t *stream, int32_t codepoint)
