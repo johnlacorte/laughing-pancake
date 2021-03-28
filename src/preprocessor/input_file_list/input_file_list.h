@@ -43,6 +43,9 @@ int input_file_line_position(input_file_list_t file_list);
 //Decodes Unicode codepoint and returns that or negative value for EOF or error
 int32_t read_utf8_from_input_file(input_file_list_t file_list);
 
+//Returns a space or CHAR_STREAM_EOF if there are no more files
+int32_t next_input_file(input_file_list_t file_list);
+
 //Returns a string explaining the status/errors in more detail
 char *input_file_error_msg(input_file_list_t file_list);
 

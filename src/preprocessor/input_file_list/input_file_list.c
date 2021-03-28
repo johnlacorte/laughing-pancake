@@ -163,7 +163,8 @@ int32_t read_utf8_from_input_file(input_file_list_t file_list)
     if(file_list != NULL)
     {
         input_file_t *input_file = get_file_list_head(file_list);
-        while(input_file != NULL)
+        //change loop to an if
+        if(input_file != NULL)
         {
             int32_t ch = read_utf8_from_char_stream(&input_file->stream);
             if(ch != CHAR_STREAM_EOF)
@@ -178,21 +179,37 @@ int32_t read_utf8_from_input_file(input_file_list_t file_list)
                 {
                     input_file->position++;
                 }
-        
-                return ch;
             }
 
-            else
-            {
-                pop_input_file(file_list);
-                input_file = get_file_list_head(file_list);
-            }
+            return ch;
         }
 
         return CHAR_STREAM_EOF;
     }
 
     return CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG;
+}
+
+int32_t next_input_file(input_file_list_t file_list)
+{
+    if(file_list != NULL)
+    {
+        if(get_file_list_head(file_list) != NULL)
+        {
+            pop_input_file(file_list);
+            if(get_file_list_head(file_list) != NULL)
+            {
+                return ' ';
+            }
+        }
+
+        return CHAR_STREAM_EOF;
+    }
+
+    else
+    {
+        return CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG;
+    }
 }
 
 char *input_file_error_msg(input_file_list_t file_list)
@@ -223,8 +240,6 @@ static int get_full_path_to_file(input_file_t *new, char *filename);
 //Sets the input_file_t's short_filename pointer to a character in its
 //long_filename array pointing it to the start of just the file name
 static void set_short_file_name(input_file_t *new);
-
-#define RETURN_ON_NEXT_READ_IS_EMPTY -6
 
 static input_file_t *new_input_file(char *filename)
 {
