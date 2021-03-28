@@ -1,15 +1,16 @@
-#include "../test_lib/test_lib.h"
-
 // Standard Library Header Files
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "../test_lib/test_lib.h"
 
 // Module Header Files
 #include "../../src/preprocessor/input_file_list/char_stream/char_stream_status.h"
 #include "../../src/preprocessor/input_file_list/input_file_list.h"
 
 // Test Functions
-int test_pass_null_to_functions()
+bool test_pass_null_to_functions()
 {
     return
 (
@@ -20,6 +21,7 @@ int test_pass_null_to_functions()
     (input_file_line(NULL) == 0) &&
     (input_file_line_position(NULL) == 0) &&
     (read_utf8_from_input_file(NULL) == CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG) &&
+    (next_input_file(NULL) == CHAR_STREAM_PREPROC_DID_SOMETHING_WRONG) &&
     (!strcmp(input_file_error_msg(NULL), "NULL POINTER PASSED TO input_file_error_msg()!!"))
 );
 
@@ -27,7 +29,7 @@ int test_pass_null_to_functions()
 
 input_file_list_t file_list;
 
-int test_pass_closed_file_to_functions()
+bool test_pass_closed_file_to_functions()
 {
     file_list = new_input_file_list();
     return
@@ -42,7 +44,7 @@ int test_pass_closed_file_to_functions()
 
 }
 
-int test_open_files()
+bool test_open_files()
 {
     return
 (
@@ -54,7 +56,7 @@ int test_open_files()
 
 }
 
-int test_read_file1()
+bool test_read_file1()
 {
     //The three files together read "cat\ndog\nbird\n"<EOF>
 
@@ -84,12 +86,14 @@ int test_read_file1()
     (input_file_line_position(file_list) == 3) &&
     (read_utf8_from_input_file(file_list) == '\n') &&
     (input_file_line(file_list) == 2) &&
-    (input_file_line_position(file_list) == 0)
+    (input_file_line_position(file_list) == 0) &&
+    (read_utf8_from_input_file(file_list) == CHAR_STREAM_EOF) &&
+    (next_input_file(file_list) == ' ')
 );
 
 }
 
-int test_read_file2()
+bool test_read_file2()
 {
     return
 (
@@ -103,14 +107,15 @@ int test_read_file2()
     (input_file_line_position(file_list) == 3) &&
     (read_utf8_from_input_file(file_list) == '\n') &&
     (input_file_line(file_list) == 2) &&
-    (input_file_line_position(file_list) == 0)
+    (input_file_line_position(file_list) == 0) &&
+    (read_utf8_from_input_file(file_list) == CHAR_STREAM_EOF) &&
+    (next_input_file(file_list) == ' ')
 );
 
 }
 
-int test_read_file3()
+bool test_read_file3()
 {
-    //This file has an escaped newline in the middle of the word bird
     return
 (
     (read_utf8_from_input_file(file_list) == 'b') &&
@@ -125,7 +130,8 @@ int test_read_file3()
     (read_utf8_from_input_file(file_list) == '\n') &&
     (input_file_line(file_list) == 2) &&
     (input_file_line_position(file_list) == 0) &&
-    (read_utf8_from_input_file(file_list) == CHAR_STREAM_EOF)
+    (read_utf8_from_input_file(file_list) == CHAR_STREAM_EOF) &&
+    (next_input_file(file_list) == CHAR_STREAM_EOF)
 );
 
 }
