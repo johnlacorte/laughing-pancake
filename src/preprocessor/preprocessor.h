@@ -14,7 +14,7 @@
 #define PREPROC_ERROR -3
 
 //Some error trying to read the file (get current file, line, and line position)
-#define PREPROC_FILE_ERROR -4
+#define PREPROC_READ_ERROR -4
 
 //Nobody needs to know the details of the state
 typedef void* preproc_t;
