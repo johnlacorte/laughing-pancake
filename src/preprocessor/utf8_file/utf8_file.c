@@ -73,10 +73,9 @@ char *get_utf8_file_error_msg(utf8_file_t *file)
 
 int32_t set_utf8_file_read_error(utf8_file_t *file, char *msg)
 {
-    fclose(file->fp);
     file->status = UTF8_FILE_ERROR;
     sprintf(file->error_msg_buffer,
-            "On line %d, character %d:\n%s\n",
+            "On line %d, character %d:\n    %s\n",
             file->line,
             file->line_position,
             msg);
@@ -150,8 +149,7 @@ int32_t read_char_from_utf8_file(utf8_file_t *file)
 
 static int32_t hex_digit_to_int(int32_t ch);
 
-static int32_t handle_negative_value_in_escape_sequence(utf8_file_t *file,
-                                                        int32_t ch);
+static int32_t set_read_error_if_eof(utf8_file_t *file, int32_t ch, char *msg);
 
 static int32_t is_code_point_valid(utf8_file_t *file, int32_t codepoint);
 
@@ -168,7 +166,8 @@ int32_t read_unicode_escape_from_utf8_file(utf8_file_t *file)
         {
             if(ch < 0)
             {
-                return handle_negative_value_in_escape_sequence(file, ch);
+                return set_read_error_if_eof(file, ch,
+                                 "Unexpected EOF in unicode escape sequence.");
             }
 
             else
@@ -206,7 +205,8 @@ int32_t read_unicode_escape_from_utf8_file(utf8_file_t *file)
     {
         if(ch < 0)
         {
-            return handle_negative_value_in_escape_sequence(file, ch);
+            return set_read_error_if_eof(file, ch,
+                                 "Unexpected EOF in unicode escape sequence.");
         }
         
         else
@@ -245,7 +245,7 @@ static int32_t read_utf8(utf8_file_t *file)
         return ch;
     }
 
-    if(ch < 192 || ch > 247)
+    if(ch < 192 || ch > 247) //128-191 = 10xxxxxx
     {
         return set_utf8_file_read_error(file,
                                    "UTF8 sequence starts with invalid byte.");
@@ -254,9 +254,9 @@ static int32_t read_utf8(utf8_file_t *file)
     //Read initial byte of multibyte sequence
     int32_t codepoint = 0;
     int number_of_additional_bytes = 0;
-    if(ch < 224)
+    if(ch < 224) //192-223 = 110xxxxx
     {
-        codepoint = ch & 31; //lowest 5 bits
+        codepoint = ch & 31; //31 = 11111
         number_of_additional_bytes = 1;
 
         //The second byte of a two byte utf8 codepoint only holds six bits
@@ -269,15 +269,15 @@ static int32_t read_utf8(utf8_file_t *file)
     }
     else
     {
-        if(ch < 240)
+        if(ch < 240) //224-239 = 1110xxxx
         {
-            codepoint = ch & 15; //lowest 4 bits
+            codepoint = ch & 15; //1111
             number_of_additional_bytes = 2;
         }
 
         else
         {
-            codepoint = ch & 7; //lowest 3 bits
+            codepoint = ch & 7; //7 = 111
             number_of_additional_bytes = 3;
         }
     }
@@ -292,14 +292,14 @@ static int32_t read_utf8(utf8_file_t *file)
                                            "Unexpected EOF in UTF8 sequence.");
         }
 
-        if(ch < 128 || ch > 191)
+        if(ch < 128 || ch > 191) //128-191 = 10xxxxxx
         {
             return set_utf8_file_read_error(file,
                                             "Invalid byte in UTF8 sequence.");
         }
 
         codepoint = codepoint << 6;
-        codepoint = codepoint + (ch & 63);
+        codepoint = codepoint + (ch & 63); //63 = 111111
         //After reading the first and second byte the codepoint should be more
         //than 0 in all cases unless it is padded with zeroes
         if(codepoint == 0)
@@ -371,13 +371,11 @@ static int32_t hex_digit_to_int(int32_t ch)
     return -1;
 }
 
-static int32_t handle_negative_value_in_escape_sequence(utf8_file_t *file,
-                                                        int32_t ch)
+static int32_t set_read_error_if_eof(utf8_file_t *file, int32_t ch, char *msg)
 {
     if(ch == UTF8_FILE_EOF)
     {
-        return set_utf8_file_read_error(file,
-                                 "Unexpected EOF in unicode escape sequence.");
+        return set_utf8_file_read_error(file, msg);
     }
 
     else
