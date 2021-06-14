@@ -6,7 +6,8 @@
 
 #define TOKEN_ERROR -2
 #define TOKEN_EOF -1
-#define TOKEN_OPEN_PAREN 0
-#define TOKEN_CLOSE_PAREN 1
+#define TOKEN_NO_MATCH 0
+#define TOKEN_IDENTIFIER 1
+#define TOKEN_NUMBER 2
 
 #endif

@@ -1,0 +1,8 @@
+#ifndef KEYWORD_TOKENS_H
+#define KEYWORD_TOKENS_H
+
+#define TOKEN_OPEN_PAREN 3
+#define TOKEN_CLOSE_PAREN 4
+#define TOKEN_KEYWORD_MODULE 5
+
+#endif
