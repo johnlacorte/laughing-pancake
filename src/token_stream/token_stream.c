@@ -12,7 +12,6 @@
 typedef struct
 {
     preproc_t preprocessor;
-    token_t *token;
     char token_buffer[MAX_TOKEN_LENGTH];
 } token_stream_state_t;
 
@@ -52,10 +51,6 @@ void free_token_stream(token_stream_t token_stream)
 
 static bool new_token(token_stream_state_t *state, token_t *token);
 
-static void set_token_type(token_stream_state_t *state, int type);
-
-static void set_token_string(token_stream_state_t *state, char *string);
-
 void read_token_from_stream(token_stream_t token_stream, token_t *token)
 {
     if(token_stream != NULL)
@@ -66,49 +61,49 @@ void read_token_from_stream(token_stream_t token_stream, token_t *token)
             char *token_buffer = stream->token_buffer;
             if(token_buffer[0] == '$')
             {
-                set_token_type(state, TOKEN_IDENTIFIER);
+                token->token_type = TOKEN_IDENTIFIER;
+                token->token_string = token_buffer;
             }
 
             else
             {
                 if(isdigit(token_buffer[0]))
                 {
-                    set_token_type(state, TOKEN_NUMBER);
+                    token->token_type = TOKEN_NUMBER;
+                    token->token_string = token_buffer;
                 }
 
                 else
                 {
-                    set_token_type(state, keyword_matcher(token_buffer));
-                }
+                    token->token_type = keyword_matcher(token_buffer);
+                    token->token_string = NULL;
+               }
             }
         }
     }
 
     else
     {
-        token->type = TOKEN_ERROR;
+        token->token_type = TOKEN_ERROR;
         token->token_string = "read_token_from_stream() passed NULL pointer.";
     }
 }
 
-static void set_token_line(token_stream_state_t *state, int line);
-
-static void set_token_position(token_stream_state_t *state, int position);
+static void set_token_type_for_negative_read(token_stream_state_t *state, token_t *token, int ch);
 
 void read_extern_name_from_stream(token_stream_t token_stream, token_t *token)
 {
     if(token_stream != NULL)
     {
         token_stream_state_t *state = (token_stream_state_t*)token_stream;
-        state->token = token;
         int ch = read_preproc_extern_name(state->preprocessor);
-        token->line = get_preproc_line_number(state->preprocessor);
+        token->token_line = get_preproc_line_number(state->preprocessor);
         token->position = get_preproc_line_position(state->preprocessor);
         //reads can be PREPROC_END_OF_STRING after the first read but not
         //PREPROC_EOF or PREPROC_ERROR
         if(ch >= 0)
         {
-            int name_index;
+            size_t name_index;
             char *name_buffer = stream->token_buffer;
             token_buffer[0] = ch;
             for(name_index = 1; name_index < MAX_TOKEN_LENGTH; name_index++)
@@ -120,14 +115,14 @@ void read_extern_name_from_stream(token_stream_t token_stream, token_t *token)
                     {
                         name_buffer[name_index] = '\0';
                         token->token_length = name_index;
-                        set_token_type(state, TOKEN_EXTERNAL_NAME);
-                        set_token_string(state, name_buffer);
+                        token->token_type = TOKEN_EXTERNAL_NAME;
+                        token->token_string = name_buffer;
                         return;
                     }
 
                     else
                     {
-                        set_token_type_for_negative_read(state, ch);
+                        set_token_type_for_negative_read(state, token, ch);
                         return;
                     }
 
@@ -140,8 +135,8 @@ void read_extern_name_from_stream(token_stream_t token_stream, token_t *token)
             }
 
             name_buffer[MAX_TOKEN_LENGTH - 1] = '/0';
-            set_token_type(state, TOKEN_ERROR);
-            set_token_string(state, "External name exceeded maximum length.");
+            token->token_type = TOKEN_ERROR;
+            token->token_string = "External name exceeded maximum length.";
             return;
         }
 
@@ -150,20 +145,20 @@ void read_extern_name_from_stream(token_stream_t token_stream, token_t *token)
             //if first read is PREPROC_END_OF_STRING it should be an error
             if(ch == PREPROC_END_OF_STRING)
             {
-                set_token_type(state, TOKEN_ERROR);
-                set_token_string(state, "External name cannot be empty.");
+                token->token_type = TOKEN_ERROR;
+                token->token_string = "External name cannot be empty.";
             }
 
             else
             {
-                set_token_type_for_negative_read(state, ch);
+                set_token_type_for_negative_read(state, token, ch);
             }
         }
     }
 
     else
     {
-        token->type = TOKEN_ERROR;
+        token->token_type = TOKEN_ERROR;
         token->token_string =
                         "read_extern_name_from_stream() passed NULL pointer.";
     }
@@ -176,32 +171,50 @@ void read_data_from_stream(token_stream_t token_stream, token_t *token)
     if(token_stream != NULL)
     {
         token_stream_state_t *state = (token_stream_state_t*)token_stream;
-        state->token = token;
-        int ch = read_preproc_extern_name(state->preprocessor);
+        int ch = read_preproc_data(state->preprocessor);
         token->line = get_preproc_line_number(state->preprocessor);
         token->position = get_preproc_line_position(state->preprocessor);
-        //Continue filling this in
+        if(ch >= 0)
+        {
+            size_t data_index = 1;
+            size_t data_buffer_length = MAX_TOKEN_LENGTH;
+            char *data_buffer = malloc(sizeof(char) * data_buffer_length);
+            data_buffer[0] = ch;
+            while(data_index )
+        }
+
+        else
+        {
+            if(ch == PREPROC_END_OF_STRING)
+            {
+                token->token_type = TOKEN_EMPTY_DATA_STRING;
+            }
+
+            else
+            {
+                set_token_type_for_negative_read(state, token, ch);
+            }
+        }
     }
 
     else
     {
-        token->type = TOKEN_ERROR;
+        token->token_type = TOKEN_ERROR;
         token->token_string = "read_data_from_stream() passed NULL pointer.";
     }
 }
 
-static void set_token_type_for_negative_read(token_stream_state_t *state, int ch);
+
 
 static bool new_token(token_stream_state_t *state, token_t *token)
 {
-    state->token = token;
     int ch = read_preproc_char(state->preprocessor);
     token->line = get_preproc_line_number(state->preprocessor);
     token->position = get_preproc_line_position(state->preprocessor);
     if(ch >= 0)
     {
         //do I need to check if ch is a space? it shouldn't be
-        int token_index;
+        size_t token_index;
         char *token_buffer = stream->token_buffer;
         token_buffer[0] = ch;
         for(token_index = 1; token_index < MAX_TOKEN_LENGTH; token_index++)
@@ -209,7 +222,7 @@ static bool new_token(token_stream_state_t *state, token_t *token)
             ch = read_preproc_char(state->preprocessor);
             if(ch < 0)
             {
-                set_token_type_for_negative_read(state, ch);
+                set_token_type_for_negative_read(state, token, ch);
                 return false;
             }
 
@@ -219,7 +232,7 @@ static bool new_token(token_stream_state_t *state, token_t *token)
                 {
                     token_buffer[token_index] = '\0';
                     token->token_length = token_index;
-                    set_token_string(state, token_buffer);
+                    token->token_string = token_buffer;
                     return true;
                 }
 
@@ -231,8 +244,8 @@ static bool new_token(token_stream_state_t *state, token_t *token)
         }
 
         token_buffer[MAX_TOKEN_LENGTH - 1] = '/0';
-        set_token_type(state, TOKEN_ERROR);
-        set_token_string(state, "Token exceeded maximum length.");
+        token->token_type = TOKEN_ERROR;
+        token->token_string = "Token exceeded maximum length.";
         return false;
     }
 
@@ -241,54 +254,31 @@ static bool new_token(token_stream_state_t *state, token_t *token)
         //first read can be PREPROC_EOF
         if(ch == PREPROC_EOF)
         {
-            set_token_type(state, TOKEN_EOF);
+            token->token_type = TOKEN_EOF;
             return false;
         }
 
         else
         {
-            set_token_type_for_negative_read(state, ch);
+            set_token_type_for_negative_read(state, token, ch);
             return false;
         }
     }
 }
 
-static void set_token_type(token_stream_state_t *state, int type)
-{
-    token_t token = state->token;
-    token->type = type;
-}
-
-static void set_token_string(token_stream_state_t *state, char *string)
-{
-    token_t token = state->token;
-    token->string = string;
-}
-
-static void set_token_line(token_stream_state_t *state, int line)
-{
-    token_t token = state->token;
-    token->line = line;
-}
-
-static void set_token_position(token_stream_state_t *state, int position)
-{
-    token_t token = state->token;
-    token->position = position;
-}
-
-static void set_token_type_for_negative_read(token_stream_state_t *state, int ch)
+//This needs to get the preprocessor used by state somehow
+static void set_token_type_for_negative_read(token_stream_state_t *state, token_t *token, int ch)
 {
     if(ch == PREPROC_EOF)
     {
         //Unexpected EOF error
-        set_token_type(state, TOKEN_ERROR);
-        set_token_string(state, "Unexpected EOF in token.");
+        token->token_type = TOKEN_ERROR;
+        token->token_string = "Unexpected EOF in token.";
     }
 
     else
     {
-        set_token_type(state, TOKEN_ERROR);
-        set_token_string(state, get_preproc_error_msg(state->preprocessor));
+        token->token_type = TOKEN_ERROR;
+        token->token_string = get_preproc_error_msg(state->preprocessor);
     }
 }
