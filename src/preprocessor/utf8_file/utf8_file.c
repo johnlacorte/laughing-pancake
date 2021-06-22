@@ -217,6 +217,41 @@ int32_t read_unicode_escape_from_utf8_file(utf8_file_t *file)
     }
 }
 
+int32_t read_byte_escape_from_utf8_file(utf8_file_t *file, int32_t first_ch)
+{
+    int32_t first_digit = hex_digit_to_int(first_ch);
+    if(first_digit < 0)
+    {
+        return set_utf8_file_read_error(file,
+"First character in byte escape wasn\'t hex digit (preprocessor did something wrong).");
+    }
+
+    else
+    {
+        int32_t second_ch = read_char_from_utf8_file(file);
+        if(second_ch < 0)
+        {
+            return set_read_error_if_eof(file, ch,
+                                    "Unexpected EOF in byte escape sequence.");
+        }
+
+        else
+        {
+            int32_t second_digit = hex_digit_to_int(second_ch);
+            if(second_digit < 0)
+            {
+                return set_utf8_file_read_error(file,
+                         "Second character in byte escape wasn\'t hex digit.");
+            }
+
+            else
+            {
+                return ((first_digit << 4) + second_digit);
+            }
+        }
+    }
+}
+
 //private functions
 
 static int32_t read_utf8(utf8_file_t *file)

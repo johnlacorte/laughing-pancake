@@ -478,8 +478,31 @@ static int32_t convert_escape_sequences(preproc_state_t *state)
                 case 'd':
                 case 'e':
                 case 'f':
-                    return hex_to_byte(state, next_ch,
-                                         remove_escaped_newlines(state));
+                    if(state->read_mode == DATA_MODE)
+                    {
+                        int32_t byte =
+                         read_byte_escape_from_utf8_file(&state->file, next_ch);
+
+                        if(byte < 0)
+                        {
+                            state->error_msg =
+                                          get_utf8_file_error_msg(&state->file);
+
+                            return PREPROC_ERROR;
+                        }
+
+                        else
+                        {
+                            return byte;
+                        }
+                    }
+
+                    else
+                    {
+                        return set_preproc_read_error(state,
+                                 "Byte escape found in external name string.");
+                    }
+
                 case 'n':
                     return '\n';
                 case 't':
@@ -629,37 +652,6 @@ static int32_t remove_escaped_newlines(preproc_state_t *state)
     return ch;
 }
 
-static int32_t hex_value(preproc_state_t *state, int32_t ch);
-
-static int32_t hex_to_byte(preproc_state_t *state, int32_t first_digit, int32_t second_digit)
-{
-    if(state->read_mode == DATA_MODE)
-    {
-        int32_t byte = 0;
-        int32_t digit = hex_value(state, first_digit);
-        if(digit >= 0)
-        {
-            byte = digit * 16;
-            digit = hex_value(state, second_digit);
-            if(digit >= 0)
-            {
-                byte = byte + digit;
-                return byte;
-            }
-        }
-
-        //returns first digit that is negative. Should be PREPROC_ERROR.
-        return digit;
-    }
-
-    else
-    {
-        return set_preproc_read_error(state,
-                                 "Byte escape found in external name string.");
-    }
-
-}
-
 static int32_t read_unicode_escape(preproc_state_t *state)
 {
     int32_t ch = read_unicode_escape_from_utf8_file(&state->file);
@@ -739,49 +731,6 @@ static void set_next_read(preproc_state_t *state, int32_t next_ch)
         state->status = PREPROC_ERROR;
         state->error_msg =
                        "Preprocessor tried to set preproc_state_t.temp twice.";
-    }
-}
-
-static int32_t hex_value(preproc_state_t *state, int32_t ch)
-{
-    if(ch < 0)
-    {
-        return ch;
-    }
-
-    else
-    {
-        if(ch >= '0')
-        {
-            if(ch <= '9')
-            {
-                return (ch - '0');
-            }
-
-            else
-            {
-                if(ch >= 'A')
-                {
-                    if(ch <= 'F')
-                    {
-                        return (ch - 'A' + 9);
-                    }
-
-                    else
-                    {
-                        if(ch >= 'a')
-                        {
-                            if(ch <= 'f')
-                            {
-                                return (ch - 'a' + 9);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return set_preproc_read_error(state, "Character that isn't a hex digit in byte escape.");
     }
 }
 
