@@ -1,13 +1,38 @@
+/**
+ * @file utf8_file.h
+ * @brief This header file declares stuff for reading utf8 files.
+ *
+ * Source files encoded in utf8 are decoded to unicode codepoints for use in
+ * the preprocessor before being encoded again to be used for matching tokens
+ * and the rest. It seemed like a good way to be absolutely sure of the
+ * character encoding of the file and positions in lines being codepoints
+ * is slightly better than in bytes. int32_t is used for returning codepoints
+ * and other values in place of codepoints because full unicode only takes
+ * 21 or 22 bits (I forget how many)and I wanted something signed to return EOF
+ * or errors. 
+ */
 #ifndef UTF8_FILE_H
 #define UTF8_FILE_H
 
+///Status of utf8_file_t when it can be read from.
 #define UTF8_FILE_OK 1
+
+///Status of utf8_file_t when it reaches the end of file.
 #define UTF8_FILE_EOF -1
+
+///Status of utf8_file_t when it encounters an error.
 #define UTF8_FILE_ERROR -2
+
+///Status of utf8_file_t before a file is open or after it is closed.
 #define UTF8_FILE_CLOSED -4
 
-#define MAX_ERROR_MSG_LENGTH 128
-
+/**
+ * @brief utf8_file_t holds all the state for reading a utf8 file.
+ *
+ * Can't simply push a codepoint back to the file stream so return_temp_next
+ * and temp are used to check for Byte Order Marker at the start of the file
+ * and to peek ahead of \r to check if it is followed by \n.
+ */
 typedef struct
 {
     FILE    *fp;
@@ -15,7 +40,6 @@ typedef struct
     bool    return_temp_next;
     int32_t temp;
     char    *error_msg;
-    char    error_msg_buffer[MAX_ERROR_MSG_LENGTH];
     int     line;
     int     line_position;
 } utf8_file_t;
@@ -47,7 +71,9 @@ bool    open_utf8_file(utf8_file_t *file, char *filename);
 /**
  * @brief Closes utf8 file
  *
- * I think this is going to be removed/changed to free utf8_file()
+ * Closing a utf8_file_t closes the file stream and it can then be used to
+ * read another file. Not that I am reusing any utf8_file_t in the
+ * preprocessor.
  * @param file Pointer to the utf8_file_t to close.
  */
 void    close_utf8_file(utf8_file_t *file);
@@ -73,46 +99,45 @@ int32_t get_utf8_file_status(utf8_file_t *file);
 char    *get_utf8_file_error_msg(utf8_file_t *file);
 
 /**
- * @brief Generates an error message with position in the utf8_file_t buffer.
+ * @brief Returns the line the last character read is on.
  *
- * I think this may be unnecessary and will be removed in the near future.
- * @param file Pointer to the utf8_file_t to 
- * @param msg A pointer to a character array.
- * @return UTF8_FILE_ERROR
- */
-int32_t set_utf8_file_read_error(utf8_file_t *file, char *msg);
-
-/**
- * @brief Returns the line the last read character is on.
- *
- * This will probably return a -1 under certain conditions in the near future.
+ * The count starts at one and increases after every newline.
  * @param file Pointer to the utf8_file_t.
- * @return
+ * @return The number of the current line.
  */
 int     get_utf8_file_line_number(utf8_file_t *file);
 
 /**
- * @brief Returns the position in the line the last read character is on.
+ * @brief Returns the position in the line the last character read is on.
  *
- * This will probably return a -1 under certain conditions in the near future.
+ * The count starts at zero before first read of the file and before first read
+ * after a newline and increases after each read of unicode codepoints. Using
+ * pop_byte_from_utf8_file() (when testing if malformed utf8 errors are being
+ * triggered for example) will lead to the count being off.
  * @param file Pointer to the utf8_file_t.
- * @return
+ * @return The number of codepoints read from the beginning of the line.
  */
 int     get_utf8_file_line_position(utf8_file_t *file);
 
 /**
  * @brief returns the next byte from the file without decoding it.
  *
- *
+ * This function is meant to be used to eat the remaining bytes of a bad utf8
+ * sequence in a test. The return value of each call will be the byte read.
+ * MAKE SURE TO RESET the utf8_file_t using reset_utf8_file_status() before
+ * using this function or it will return UTF8_FILE_ERROR instead of reading
+ * any bytes. This function will not change the status unless it encounters
+ * an end of file.
  * @param file Pointer to the utf8_file_t to read from.
- * @return
+ * @return UTF8_FILE_EOF, UTF8_FILE_ERROR, or value of the byte. 
  */
 int32_t pop_byte_from_utf8_file(utf8_file_t *file);
 
 /**
  * @brief Resets the status so you can test another error.
  *
- *
+ * Resets status, error message, file position, etc. to what they were after
+ * the file successfully opened. 
  * @param file Pointer to the utf8_file_t to reset.
  */
 void    reset_utf8_file_status(utf8_file_t *file);
@@ -120,31 +145,42 @@ void    reset_utf8_file_status(utf8_file_t *file);
 /**
  * @brief Decodes a unicode codepoint from the file.
  *
- *
+ * Decodes utf8, checks for a LOT of different problems (including Byte Order
+ * Mark anywhere but the beginning of the file), and it converts all newlines
+ * to the \n type. It stops reading if the end of file is found or some error
+ * is encountered and will only return UTF8_FILE_EOF or UTF8_FILE_ERROR from
+ * then on.
  * @param file Pointer to the utf8_file_t to read from.
- * @return A codepoint or a negative value for an error.
+ * @return UTF8_FILE_EOF, UTF8_FILE_ERROR, or a codepoint.
  */
 int32_t read_char_from_utf8_file(utf8_file_t *file);
 
 /**
- * @brief Reads the stuff after a \u in the file and returns a codepoint.
+ * @brief Reads hex digits in a unicode escape and returns a codepoint.
  *
- *
+ * Reads the stuff after \u escape. In WebAssembly these are something like
+ * "\u{1af2}", some hex digits between curly braces. This function checks the
+ * codepoint with the same checks that codepoints read from utf8 have to pass.
+ * An end of file found in an escape will return an error along with normal
+ * errors you would expect. 
  * @param file Pointer to the utf8_file_t to read from.
- * @return A codepoint or a negative value for an error.
+ * @return A codepoint or UTF8_FILE_ERROR for an error.
  */
 int32_t read_unicode_escape_from_utf8_file(utf8_file_t *file);
 
 /**
  * @brief Reads a byte in a data string. Pass the first hex digit to it.
  *
- *
+ * If a hex digit is found after a backslash (a byte escape), the first hex
+ * digit can be passed to this function to read the second (byte escapes are
+ * exactly two hex digits in WebAssembly) and it returns the value of the byte
+ * or UTF8_FILE_ERROR.
  * @param file Pointer to the utf8_file_t to read from.
  * @param first_ch The first hex digit.
- * @return the value of the byte.
+ * @return The value of the byte or UTF8_FILE_ERROR.
  */
 int32_t read_byte_escape_from_utf8_file(utf8_file_t *file, int32_t first_ch);
 
 #endif
 
-// *** end of file utf8_file.h ***
+// *** end of file "utf8_file.h" ***
