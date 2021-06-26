@@ -74,11 +74,7 @@ char *get_utf8_file_error_msg(utf8_file_t *file)
 int32_t set_utf8_file_read_error(utf8_file_t *file, char *msg)
 {
     file->status = UTF8_FILE_ERROR;
-    sprintf(file->error_msg_buffer,
-            "On line %d, character %d:\n    %s\n",
-            file->line,
-            file->line_position,
-            msg);
+    file->error_msg = msg;
     return UTF8_FILE_ERROR;
 }
 
@@ -246,7 +242,7 @@ int32_t read_byte_escape_from_utf8_file(utf8_file_t *file, int32_t first_ch)
 
             else
             {
-                return ((first_digit << 4) + second_digit);
+j                return ((first_digit << 4) + second_digit);
             }
         }
     }
