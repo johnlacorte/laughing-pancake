@@ -1,20 +1,14 @@
-//I think that the code for reading byte escape sequences might be better
-//in utf8_file.
 //I think I might add a NAME_MODE and a read_preproc_name() function. If I add
 //this insert_space_before_symbols() should add a space before $.
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #include "utf8_file/utf8_file.h"
+#include "utf8_encoder/utf8_encoder.h"
 #include "preprocessor.h"
-
-typedef struct
-{
-    int remaining_bytes;
-    int bytes[3];
-} utf8_encoder_t;
 
 typedef struct
 {
@@ -30,15 +24,15 @@ typedef struct
 
 #define NORMAL_MODE 0
 
-#define STRING_MODE 1
+#define NAME_MODE 1
 
-#define EXTERN_NAME_MODE 2
+#define STRING_MODE 2
 
-#define DATA_MODE 3
+#define EXTERN_NAME_MODE 3
+
+#define DATA_MODE 4
 
 static preproc_state_t *get_state(preproc_t pre);
-
-static void init_utf8_encoder(preproc_state_t *state);
 
 preproc_t open_preproc(char *filename)
 {
@@ -49,7 +43,7 @@ preproc_t open_preproc(char *filename)
         if(open_utf8_file(&new->file, filename))
         {
             //Some of this should be moved to reset_preproc_status()
-            init_utf8_encoder(new);
+            init_utf8_encoder(&new->encoder);
             new->status = PREPROC_OK;
             new->read_mode = NORMAL_MODE;
             new->last_read = ' ';
@@ -146,9 +140,15 @@ void reset_preproc_status(preproc_t pre)
     //when testing that
 }
 
-static int set_preproc_read_error(preproc_state_t *state, char *msg);
+static int32_t read_normal_mode_char(preproc_state_t *state);
 
-static int32_t is_char_normal_mode_char(preproc_state_t *state);
+static int32_t read_name_mode_char(preproc_state_t *state);
+
+static int32_t read_string_mode_char(preproc_state_t *state);
+
+static int read_next_byte_from_encoder_helper(preproc_state_t *state);
+
+static int set_preproc_read_error(preproc_state_t *state, char *msg);
 
 int read_preproc_char(preproc_t pre)
 {
@@ -157,12 +157,52 @@ int read_preproc_char(preproc_t pre)
         preproc_state_t *state = get_state(pre);
         if(state->status == PREPROC_OK)
         {
-            if(state->read_mode == NORMAL_MODE || state->read_mode == STRING_MODE)
+            if(state->read_mode == NORMAL_MODE ||
+               state->read_mode == NAME_MODE ||
+               state->read_mode == STRING_MODE)
             {
-                int32_t ch = is_char_normal_mode_char(state);
-                state->last_read = ch;
-                //cast to int
-                return ch;
+                if(is_utf8_encoder_empty(&state->encoder))
+                {
+                    int32_t ch;
+                    if(state->read_mode == NORMAL_MODE)
+                    {
+                        ch = read_normal_mode_char(state);
+                    }
+
+                    else
+                    {
+                        if(state->read_mode == NAME_MODE)
+                        {
+                            ch = read_name_mode_char(state);
+                        }
+
+                        else
+                        {
+                            ch = read_string_mode_char(state);
+                        }
+                        
+                    }
+
+                    state->last_read = ch;
+                    if(ch < 0)
+                    {
+                        //Maybe I'm a little paranoid but I feel I need to make
+                        //sure this properly sign extends if int is larger than
+                        //a int32_t.
+                        return (int)ch;
+                    }
+
+                    else
+                    {
+                        encode_codepoint_to_utf8(&state->encoder, ch);
+                        return read_next_byte_from_encoder_helper(state);
+                    }
+                }
+
+                else
+                {
+                    return read_next_byte_from_encoder_helper(state);
+                }
             }
 
             else
@@ -194,6 +234,8 @@ int read_preproc_char(preproc_t pre)
 }
 
 static int read_string(preproc_state_t *state);
+
+static int32_t read_external_name_char(preproc_state_t *state);
 
 int read_preproc_extern_name(preproc_t pre)
 {
@@ -249,6 +291,8 @@ int read_preproc_extern_name(preproc_t pre)
     }
 }
 
+static int32_t read_data_char(preproc_state_t *state);
+
 int read_preproc_data(preproc_t pre)
 {
     if(pre != NULL)
@@ -301,35 +345,45 @@ int read_preproc_data(preproc_t pre)
     }
 }
 
-//local functions
+char *get_preproc_line_string(preproc_t pre, int line_number)
+{
+    if(pre != NULL)
+    {
+        preproc_state_t *state = get_state(pre);
+        return
+            convert_string_to_utf8(&state->encoder,
+                          get_utf8_file_line_length(&state->file, line_number),
+                         get_utf8_file_line_string(&state->file, line_number));
+    }
+
+    else
+    {
+        return "get_preproc_line_string() called with NULL pointer.";
+    }
+}
+
+// *** private functions ***
 
 static preproc_state_t *get_state(preproc_t pre)
 {
     return (preproc_state_t *)pre;
 }
 
-static void init_utf8_encoder(preproc_state_t *state)
+static int read_next_byte_from_encoder_helper(preproc_state_t *state)
 {
-    utf8_encoder_t *encoder = &state->encoder;
-    encoder->remaining_bytes = 0;
-    encoder->bytes[0] = 0;
-    encoder->bytes[1] = 0;
-    encoder->bytes[2] = 0;
+    return 0;
 }
 
 static int set_preproc_read_error(preproc_state_t *state, char *msg)
 {
-    set_utf8_file_read_error(&state->file, msg);
     state->status = PREPROC_ERROR;
-    state->error_msg = get_utf8_file_error_msg(&state->file);
+    state->error_msg = msg;
     return PREPROC_ERROR;
 }
 
-#include <ctype.h>
-
 static int32_t remove_extra_spaces(preproc_state_t *state);
 
-static int32_t is_char_normal_mode_char(preproc_state_t *state)
+static int32_t read_normal_mode_char(preproc_state_t *state)
 {
     int32_t ch = remove_extra_spaces(state);
     if(ch < 128)
@@ -364,21 +418,28 @@ static int32_t is_char_normal_mode_char(preproc_state_t *state)
     }
 }
 
-static bool is_utf8_encoder_empty(preproc_state_t *state);
+static int32_t read_name_mode_char(preproc_state_t *state)
+{
+    return 0;
+}
 
-static int32_t convert_escape_sequences(preproc_state_t *state);
+static int32_t read_string_mode_char(preproc_state_t *state)
+{
+    return 0;
+}
+
+static int32_t read_data_char(preproc_state_t *state)
+{
+    return 0;
+}
 
 static int32_t set_read_error_if_eof(preproc_state_t *state,
                                      int32_t ch,
                                      char *msg);
 
-static int convert_codepoint_to_utf8(preproc_state_t *state, int32_t ch);
-
-static int read_next_byte_from_encoder(preproc_state_t *state);
-
 static int read_string(preproc_state_t *state)
 {
-    if(is_utf8_encoder_empty(state))
+    if(is_utf8_encoder_empty(&state->encoder))
     {
         int32_t ch = convert_escape_sequences(state);
         if(ch < 0)
@@ -390,14 +451,20 @@ static int read_string(preproc_state_t *state)
 
         else
         {
-            return convert_codepoint_to_utf8(state, ch);
+            convert_codepoint_to_utf8(&state->encoder, ch);
+            return read_next_byte_from_encoder(&state->encoder)
         }
     }
 
     else
     {
-        return read_next_byte_from_encoder(state);
+        return read_next_byte_from_encoder(&state->encoder);
     }
+}
+
+static int32_t read_external_name_char(preproc_state_t *state)
+{
+    return 0;
 }
 
 static int32_t insert_space_after_symbols(preproc_state_t *state);
@@ -416,16 +483,9 @@ static int32_t remove_extra_spaces(preproc_state_t *state)
     return ch;
 }
 
-static bool is_utf8_encoder_empty(preproc_state_t *state)
-{
-    //To be safe I might be better returning true if it is less than zero too
-    utf8_encoder_t *encoder = &state->encoder;
-    return (encoder->remaining_bytes <= 0);
-}
-
 static int32_t remove_escaped_newlines(preproc_state_t *state);
 
-static int32_t hex_to_byte(preproc_state_t *state, int32_t first_digit, int32_t second_digit);
+static int32_t read_byte_escape(preproc_state_t *state, int32 ch);
 
 static int32_t read_unicode_escape(preproc_state_t *state);
 
@@ -478,31 +538,7 @@ static int32_t convert_escape_sequences(preproc_state_t *state)
                 case 'd':
                 case 'e':
                 case 'f':
-                    if(state->read_mode == DATA_MODE)
-                    {
-                        int32_t byte =
-                         read_byte_escape_from_utf8_file(&state->file, next_ch);
-
-                        if(byte < 0)
-                        {
-                            state->error_msg =
-                                          get_utf8_file_error_msg(&state->file);
-
-                            return PREPROC_ERROR;
-                        }
-
-                        else
-                        {
-                            return byte;
-                        }
-                    }
-
-                    else
-                    {
-                        return set_preproc_read_error(state,
-                                 "Byte escape found in external name string.");
-                    }
-
+                    return read_byte_escape(state, next_ch);
                 case 'n':
                     return '\n';
                 case 't':
@@ -534,77 +570,6 @@ static int32_t set_read_error_if_eof(preproc_state_t *state,
     else
     {
         return ch;
-    }
-}
-
-static int convert_codepoint_to_utf8(preproc_state_t *state, int32_t ch)
-{
-    //should probably check if encoder is empty and return an error if not
-    //do I need to cast anything to an int?
-    if(ch < 128)
-    {
-        return ch;
-    }
-
-    else
-    {
-        utf8_encoder_t *encoder = &state->encoder;
-        encoder->bytes[2] = 128 + (ch & 63); //128-191 = 10xxxxxx, 63 = 111111
-        ch = ch >> 6;
-        if(ch < 32) //31 = 11111
-        {
-            encoder->remaining_bytes = 1;
-            return 192 + ch; //192-223 = 110xxxxx
-        }
-
-        else
-        {
-            encoder->bytes[1] = 128 + (ch & 63);
-            ch = ch >> 6;
-            if(ch < 16) //15 = 1111
-            {
-                encoder->remaining_bytes = 2;
-                return 224 + ch; //224-239 = 1110xxxx
-            }
-
-            else
-            {
-                encoder->bytes[0] = 128 + (ch & 63);
-                ch = ch >> 6;
-                if(ch < 8) //7 = 111
-                {
-                    encoder->remaining_bytes = 3;
-                    return 240 + ch; //240-247 = 11110xxx
-                }
-
-                else
-                {
-                    //codepoint too big?
-                    state->status = PREPROC_ERROR;
-                    state->error_msg = "";
-                    //set state->error_msg
-                }
-            }
-        }
-    }
-}
-
-static int read_next_byte_from_encoder(preproc_state_t *state)
-{
-    utf8_encoder_t *encoder = &state->encoder;
-    if(encoder->remaining_bytes > 0)
-    {
-        int byte = 3 - encoder->bytes[encoder->remaining_bytes];
-        encoder->remaining_bytes--;
-        return byte;
-    }
-
-    else
-    {
-        state->status = PREPROC_ERROR;
-        state->error_msg = "Preprocessor tried reading from empty utf8 encoder.";
-        //set state->error_msg
-        return PREPROC_ERROR; 
     }
 }
 
@@ -650,6 +615,32 @@ static int32_t remove_escaped_newlines(preproc_state_t *state)
     }
 
     return ch;
+}
+
+static int32_t read_byte_escape(preproc_state_t *state, int32 ch)
+{
+    if(state->read_mode == DATA_MODE)
+    {
+        int32_t byte =
+        read_byte_escape_from_utf8_file(&state->file, ch);
+
+        if(byte < 0)
+        {
+            state->error_msg = get_utf8_file_error_msg(&state->file);
+            return PREPROC_ERROR;
+        }
+
+        else
+        {
+            return byte;
+        }
+    }
+
+    else
+    {
+        return set_preproc_read_error(state,
+                                 "Byte escape found in external name string.");
+    }
 }
 
 static int32_t read_unicode_escape(preproc_state_t *state)
@@ -800,6 +791,11 @@ static int32_t insert_space_before_symbols(preproc_state_t *state)
         int32_t ch = read_char(state);
         switch(ch)
         {
+            case '$':
+                if(state->read_mode == NAME_MODE)
+                {
+                    return ch;
+                }
             case '"':
             case '(':
             case ')':
@@ -877,4 +873,4 @@ static int32_t remove_line_comment(preproc_state_t *state)
     return insert_space_before_symbols(state);
 }
 
-/* end of file "preprocessor.c" */
+// *** end of file "preprocessor.c" ***
