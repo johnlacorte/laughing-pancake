@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "utf8_encoder.h"
 
 void init_utf8_encoder(utf8_encoder_t *encoder)
@@ -37,7 +38,7 @@ bool is_utf8_encoder_empty(utf8_encoder_t *encoder)
     }
 }
 
-void convert_codepoint_to_utf8(utf8_encoder_t *encoder, int32_t ch)
+void encode_codepoint_to_utf8(utf8_encoder_t *encoder, int32_t ch)
 {
     //do I need to cast anything to an int?
     if(encoder->status == ENCODER_OK)
@@ -121,9 +122,93 @@ int read_next_byte_from_encoder(utf8_encoder_t *encoder)
     }
 }
 
-char *get_encoder_error_msg(utf8_encoder_t *encoder)
+char *get_utf8_encoder_error_msg(utf8_encoder_t *encoder)
 {
     return encoder->error_msg;
+}
+
+static int copy_utf8_to_char_array(utf8_encoder_t *encoder,
+                               int32_t ch,
+                               char *dest);
+
+char *convert_string_to_utf8(utf8_encoder_t *encoder,
+                             size_t length,
+                             int32_t *string)
+{
+    if(length > 0)
+    {
+        if(string != NULL)
+        {
+            char *return_string = malloc(sizeof(char) * length);
+            if(return_string != NULL)
+            {
+                int char_index = 0;
+                for(size_t int32_t_index = 0;
+                    int32_t_index < length;
+                    int32_t_index++)
+                {
+                    int bytes_copied =
+                        copy_utf8_to_char_array(encoder,
+                                                string[int32_t_index],
+                                                &return_string[char_index]);
+                    if(bytes_copied <= 0)
+                    {
+                        free(return_string);
+                        return NULL;
+                    }
+
+                    else
+                    {
+                        char_index += bytes_copied;
+                    }
+                }
+
+                if(return_string[char_index - 1] == '\0')
+                {
+                    return return_string;
+                }
+
+                else
+                {
+                    free(return_string);
+                    return NULL;
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+// *** private functions ***
+
+//Tries to encode a codepoint to utf8 and write the resulting bytes to an array
+//of chars returning the number of chars written.
+static int copy_utf8_to_char_array(utf8_encoder_t *encoder,
+                               int32_t ch,
+                               char *dest)
+{
+    if(is_utf8_encoder_empty(encoder))
+    {
+        encode_codepoint_to_utf8(encoder, ch);
+        int counter = 0;
+        while(!is_utf8_encoder_empty(encoder))
+        {
+            int byte = read_next_byte_from_encoder(encoder);
+            if(byte == ENCODER_ERROR)
+            {
+                return -1;
+            }
+
+            *dest = byte;
+            dest++;
+            counter++;
+        }
+
+        return counter;
+    }
+
+    return -1;
 }
 
 // *** end of file "utf8_encoder.c" ***
