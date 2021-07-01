@@ -85,14 +85,16 @@ int  read_next_byte_from_encoder(utf8_encoder_t *encoder);
 char *get_utf8_encoder_error_msg(utf8_encoder_t *encoder);
 
 /**
- * @brief Not implemented, returns NULL.
+ * @brief Returns a pointer to a newly allocated char array that holds utf8.
  *
- * When this is finished, it will allocate a char array, encode the string and
- * return the pointer to the character array when finished. This just returns
- * NULL at the moment. I think it will be needed for parser errors.
+ * It will allocates a char array, encodes from an array of codepoints into it,
+ * and returns the pointer to the character array when finished. I think it
+ * will be needed for parser errors that print out the original line from the
+ * source file.
  * @param encoder Pointer to a utf8_encoder_t.
- * @param length The length of the string passed to the function to encode.
- * @return NULL
+ * @param length The length of the codepoint array passed to the function to encode.
+ * @param string An array of codepoints terminated by zero.
+ * @return char pointer allocated from the heap (terminated by zero) or NULL.
  */
 char *convert_string_to_utf8(utf8_encoder_t *encoder, size_t length, int32_t *string);
 
