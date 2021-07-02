@@ -430,6 +430,8 @@ static int32_t read_utf8(utf8_file_state_t *state)
     return is_code_point_valid(state, codepoint);
 }
 
+//Reads characters and replaces \r and \r\n with \n . Just in case they already
+//aren't.
 static int32_t convert_newlines(utf8_file_state_t *state);
 
 static int32_t read_and_update_position(utf8_file_state_t *state)
