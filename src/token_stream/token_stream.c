@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "../preprocessor/preprocessor.h"
-#include "keyword_matcher.h"
+#include "keyword_matcher/keyword_matcher.h"
 #include "token_types.h"
 #include "token_stream.h"
 
@@ -58,7 +58,7 @@ void read_token_from_stream(token_stream_t token_stream, token_t *token)
         token_stream_state_t *state = (token_stream_state_t*)token_stream;
         if(new_token(state, token))
         {
-            char *token_buffer = stream->token_buffer;
+            char *token_buffer = state->token_buffer;
             if(token_buffer[0] == '$')
             {
                 token->token_type = TOKEN_IDENTIFIER;
@@ -98,15 +98,16 @@ void read_extern_name_from_stream(token_stream_t token_stream, token_t *token)
         token_stream_state_t *state = (token_stream_state_t*)token_stream;
         int ch = read_preproc_extern_name(state->preprocessor);
         token->token_line = get_preproc_line_number(state->preprocessor);
-        token->position = get_preproc_line_position(state->preprocessor);
+        token->token_position = get_preproc_line_position(state->preprocessor);
         //reads can be PREPROC_END_OF_STRING after the first read but not
         //PREPROC_EOF or PREPROC_ERROR
         if(ch >= 0)
         {
-            size_t name_index;
-            char *name_buffer = stream->token_buffer;
-            token_buffer[0] = ch;
-            for(name_index = 1; name_index < MAX_TOKEN_LENGTH; name_index++)
+            char *name_buffer = state->token_buffer;
+            name_buffer[0] = ch;
+            for(size_t name_index = 1;
+                name_index < MAX_TOKEN_LENGTH;
+                name_index++)
             {
                 ch = read_preproc_extern_name(state->preprocessor);
                 if(ch < 0)
@@ -134,7 +135,7 @@ void read_extern_name_from_stream(token_stream_t token_stream, token_t *token)
                 }
             }
 
-            name_buffer[MAX_TOKEN_LENGTH - 1] = '/0';
+            name_buffer[MAX_TOKEN_LENGTH - 1] = '\0';
             token->token_type = TOKEN_ERROR;
             token->token_string = "External name exceeded maximum length.";
             return;
@@ -172,15 +173,59 @@ void read_data_from_stream(token_stream_t token_stream, token_t *token)
     {
         token_stream_state_t *state = (token_stream_state_t*)token_stream;
         int ch = read_preproc_data(state->preprocessor);
-        token->line = get_preproc_line_number(state->preprocessor);
-        token->position = get_preproc_line_position(state->preprocessor);
+        token->token_line = get_preproc_line_number(state->preprocessor);
+        token->token_position = get_preproc_line_position(state->preprocessor);
         if(ch >= 0)
         {
-            size_t data_index = 1;
             size_t data_buffer_length = MAX_TOKEN_LENGTH;
             char *data_buffer = malloc(sizeof(char) * data_buffer_length);
-            data_buffer[0] = ch;
-            while(data_index )
+            if(data_buffer != NULL)
+            {
+                data_buffer[0] = ch;
+            }
+
+            for(size_t data_index = 1; ; data_index++)
+            {
+                if(data_index >= data_buffer_length)
+                {
+                    data_buffer_length *= 2;
+                    free(data_buffer);
+                    data_buffer = malloc(sizeof(char) * data_buffer_length);
+                }
+
+                if(data_buffer == NULL)
+                {
+                    token->token_type = TOKEN_ERROR;
+                    token->token_string =
+        "Unable to allocate memory for data string in read_data_from_stream()";
+                    return;
+                }
+
+                ch = read_preproc_data(state->preprocessor);
+                if(ch < 0)
+                {
+                    if(ch == PREPROC_END_OF_STRING)
+                    {
+                        data_buffer[data_index] = '\0';
+                        token->token_length = data_index;
+                        token->token_type = TOKEN_EXTERNAL_NAME;
+                        token->token_string = data_buffer;
+                        return;
+                    }
+
+                    else
+                    {
+                        set_token_type_for_negative_read(state, token, ch);
+                        return;
+                    }
+
+                }
+
+                else
+                {
+                    data_buffer[data_index] = ch;
+                }                
+            }
         }
 
         else
@@ -204,20 +249,35 @@ void read_data_from_stream(token_stream_t token_stream, token_t *token)
     }
 }
 
+char *get_token_stream_line_string(token_stream_t token_stream, int line_number)
+{
+    if(token_stream != NULL)
+    {
+        token_stream_state_t *state = (token_stream_state_t*)token_stream;
+        return get_preproc_line_string(state->preprocessor, int line_number);
+    }
 
+    else
+    {
+        return NULL;
+    }
+}
+
+// *** private functions ***
 
 static bool new_token(token_stream_state_t *state, token_t *token)
 {
     int ch = read_preproc_char(state->preprocessor);
-    token->line = get_preproc_line_number(state->preprocessor);
-    token->position = get_preproc_line_position(state->preprocessor);
+    token->token_line = get_preproc_line_number(state->preprocessor);
+    token->token_position = get_preproc_line_position(state->preprocessor);
     if(ch >= 0)
     {
         //do I need to check if ch is a space? it shouldn't be
-        size_t token_index;
-        char *token_buffer = stream->token_buffer;
+        char *token_buffer = state->token_buffer;
         token_buffer[0] = ch;
-        for(token_index = 1; token_index < MAX_TOKEN_LENGTH; token_index++)
+        for(size_t token_index = 1;
+            token_index < MAX_TOKEN_LENGTH;
+            token_index++)
         {
             ch = read_preproc_char(state->preprocessor);
             if(ch < 0)
@@ -243,7 +303,7 @@ static bool new_token(token_stream_state_t *state, token_t *token)
             }
         }
 
-        token_buffer[MAX_TOKEN_LENGTH - 1] = '/0';
+        token_buffer[MAX_TOKEN_LENGTH - 1] = '\0';
         token->token_type = TOKEN_ERROR;
         token->token_string = "Token exceeded maximum length.";
         return false;
@@ -282,3 +342,5 @@ static void set_token_type_for_negative_read(token_stream_state_t *state, token_
         token->token_string = get_preproc_error_msg(state->preprocessor);
     }
 }
+
+// *** end of file "token_stream.c" ***
