@@ -4,13 +4,24 @@
 
 typedef void* wasm_module_t;
 
-typedef unsigned char value_type_t;
+//I think that these should all be standard int 8bit types including flags or
+//they could all be enums and change all the functions to accept ints
+typedef unsigned char value_type_t; //is a varint7
 
-typedef unsigned char element_type_t;
+typedef unsigned char element_type_t; //is a varint7
 
-typedef unsigned char mutability_t;
+typedef unsigned char mutability_t; //is a varuint1
 
-typedef unsigned char export_kind_t;
+typedef unsigned char export_kind_t; //single byte unsigned int
+
+//Flags are a varuint1 that is 0 or 1. This and functions that accept a flags_t
+//should maybe accept a uint8_t instead
+typedef uint32_t flags_t; //is a varuint1
+
+//not sure if I want to keep these uint8_t might be descriptive enough
+//typedef uint8_t bytecode_byte_t;
+
+//typedef uint8_t data_byte_t;
 
 //Maybe the other unsigned char should be named too, maybe they should be enums,
 //maybe the char pointers should be named to indicate if they are a utf8 string,
@@ -21,10 +32,12 @@ typedef unsigned char export_kind_t;
 wasm_module_t new_wasm_module(char *filename);
 
 //I may change the names of these
-//It looks like the return values of these is the index
+//It looks like the return values of these is the index maybe I should add
+//real error checking instead
 uint32_t add_type_to_module(wasm_module_t module,
-                            value_type_t return_value_type,
-                            uint8_t      number_of_params,
+                            uint8_t      return_count, //varuint1
+                            value_type_t *return_value_types,
+                            uint32_t     number_of_params, //varuint32
                             value_type_t *param_types);
 
 void add_function_import_to_module(wasm_module_t module,
@@ -40,7 +53,7 @@ void add_table_import_to_module(wasm_module_t  module,
                                 uint32_t       field_name_length,
                                 char           *field_name,
                                 element_type_t element_type,
-                                uint32_t       flags,
+                                flags_t        flags,
                                 uint32_t       initial_size,
                                 uint32_t       maximum_size);
 
@@ -49,7 +62,7 @@ void add_memory_import_to_module(wasm_module_t module,
                                  char          *module_name,
                                  uint32_t      field_name_length,
                                  char          *field_name,
-                                 uint32_t      flags,
+                                 flags_t       flags,
                                  uint32_t      initial_size,
                                  uint32_t      maximum_size);
 
@@ -65,12 +78,12 @@ uint32_t add_function_to_module(wasm_module_t module, uint32_t typeIndex);
 
 uint32_t add_table_to_module(wasm_module_t  module,
                              element_type_t element_type,
-                             uint32_t       flags,
+                             flags_t        flags,
                              uint32_t       initial_size,
                              uint32_t       maximum_size);
 
 void add_memory_to_module(wasm_module_t module,
-                          uint32_t      flags,
+                          flags_t       flags,
                           uint32_t      initial_size,
                           uint32_t      maximum_size);
 
@@ -101,9 +114,9 @@ void add_code_to_module(wasm_module_t module,
 void add_data_to_module(wasm_module_t module,
                         uint32_t      memory_index,
                         uint32_t      init_expr_length,
-                        unsigned char *init_expr,
+                        uint8_t       *init_expr,
                         uint32_t      data_length,
-                        unsigned char *data_bytes);
+                        uint8_t       *data_bytes);
 
 //void addNameToModule(struct WasmModule*);
 
