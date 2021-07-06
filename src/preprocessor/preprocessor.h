@@ -1,8 +1,10 @@
 /**
  * @file preprocessor.h
- * @brief
+ * @brief Preprocessor for WebAssembly source files.
  *
- *
+ * The preprocessor opens a utf8_file and reads from it. It removes comments,
+ * places single spaces between tokens, can be used to read external names,
+ * and can be used to read data strings.
  */
 #ifndef PREPOCESSOR_H
 #define PREPROCESSOR_H
@@ -42,80 +44,92 @@ typedef void* preproc_t;
 preproc_t open_preproc(char *filename);
 
 /**
- * @brief
+ * @brief Closes utf8_file and frees memory.
  *
- *
- * @param pre
+ * If passed NULL fro the parameter pre does nothing. It assumes that this
+ * is because of failure to allocate memory for the preproceesor.
+ * @param pre The preprocessor to free.
  */
 void free_preproc(preproc_t pre);
 
 /**
- * @brief
+ * @brief Returns the status of the preprocessor.
  *
- *
- * @param pre
+ * Mainly used to test if everything is working correctly the return value is
+ * PREPROC_OK, PREPROC_EOF, PREPROC_END_OF_STRING, or PREPROC_ERROR. 
+ * @param pre The preprocessor to check the status of.
+ * return Returns the status of preprocessor.
  */
 int  get_preproc_status(preproc_t pre);
 
 /**
- * @brief
+ * @brief Returns a char pointer to the last error message.
  *
- *
- * @param pre
- * @return
+ * If there are no errors it returns a pointer to the string
+ * "Preprocessor okay.". If passed NULL for the parameter pre it returns a
+ * pointer to the string "Failed to allocate memory for preprocessor."
+ * @param pre The preprocessor to get last error message from.
+ * @return char pointer to a string that describes error.
  */
 char *get_preproc_error_msg(preproc_t pre);
 
 /**
- * @brief
+ * @brief Returns the number of the line in the utf8_file being read from.
  *
- *
- * @param pre
- * @return
+ * If passed NULL returns -1.
+ * @param pre The preprocessor to check the current line.
+ * @return The current line number counter.
  */
 int  get_preproc_line_number(preproc_t pre);
 
 /**
- * @brief
+ * @brief Return the number of codepoints read so far on the current line.
  *
- *
- * @param pre
- * @return
+ * If passed NULL returns -1.
+ * @param pre The preprocessor to check the current position
+ * @return The current line position counter.
  */
 int  get_preproc_line_position(preproc_t pre);
 
 /**
- * @brief
+ * @brief  Resets the status of the preprocessor to PREPROC_OK.
  *
- *
- * @param pre
+ * Mainly used for tests sets the status and error message of a preprocessor
+ * back to the initial values.
+ * @param pre A preprocessor that has encountered a file error.
  */
 void reset_preproc_status(preproc_t pre);
 
 /**
- * @brief
+ * @brief Returns next byte of preprocessed text from file.
  *
- *
- * @param pre
- * @return
+ * Removes comments, and returns tokens one byte at a time seperated by spaces.
+ * @param pre The preprocessor to read from.
+ * @return A byte of utf8 encoded text or PREPROC_ERROR.
  */
 int  read_preproc_char(preproc_t pre);
 
 /**
- * @brief
+ * @brief Returns next byte of an external name string.
  *
- *
- * @param pre
- * @return
+ * After reading the initial double quote (a double quote followed by a space)
+ * you can use this function to return an external name string encoded to utf8
+ * one byte at a time followed by PREPROC_END_OF_STRING. Any errors will return
+ * PREPROC_ERROR.
+ * @param pre The preprocessor to read from.
+ * @return A byte of utf8 encoded text or PREPROC_ERROR or PREPROC_END_OF_STRING.
  */
 int  read_preproc_extern_name(preproc_t pre);
 
 /**
- * @brief
+ * @brief Returns next byte of a data string.
  *
- *
- * @param pre
- * @return
+ * After reading the initial double quote (a double quote followed by a space)
+ * you can use this function to return an data string encoded to utf8 one byte
+ * at a time followed by PREPROC_END_OF_STRING. Any errors will return
+ * PREPROC_ERROR.
+ * @param pre The preprocessor to read from.
+ * @return A byte of utf8 encoded text or PREPROC_ERROR or PREPROC_END_OF_STRING.
  */
 int  read_preproc_data(preproc_t pre);
 
@@ -124,7 +138,7 @@ int  read_preproc_data(preproc_t pre);
  *
  * When this is finished, it will return the line from a file. This just returns
  * NULL at the moment. I think it will be needed for parser errors.
- * @param file
+ * @param pre
  * @param line_number
  * @return NULL
  */
