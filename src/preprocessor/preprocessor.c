@@ -2,13 +2,13 @@
 //build different read mode validation sets
 //calls to utf8_file functions need to match the new prototypes
 //rewrite open_preproc() and other functions to use a typecasted void pointer
-//read_string needs some work 
+//read_string needs to be combined with convert_escape_sequences() and return an int
+//read_byte_escape_from_utf8_file() and read_byte_escape()
 //compile
 //testing
 //build script
 #include <ctype.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -32,20 +32,20 @@ typedef struct
 
 #define NAME_MODE 1
 
-#define EXTERN_NAME_MODE 2
+#define STRING_MODE 2
 
-#define DATA_MODE 3
+#define EXTERN_NAME_MODE 3
 
-static preproc_state_t *get_state(preproc_t pre);
+#define DATA_STRING_MODE 4
 
 preproc_t open_preproc(char *filename)
 {
     preproc_state_t *new = malloc(sizeof(preproc_state_t));
     if(new != NULL)
     {
+        //open_utf8_file() declared in utf8_file/utf8_file.h
         new->file = open_utf8_file(filename);
-        //Some of this should be moved to reset_preproc_status()
-        //I am not sure if resetting the mode should be here or there
+        //init_utf8_encoder() declared in utf8_encoder/utf8_encoder.h
         init_utf8_encoder(&new->encoder);
         new->status = PREPROC_OK;
         new->read_mode = NORMAL_MODE;
@@ -66,7 +66,8 @@ void free_preproc(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
+        preproc_state_t *state = (preproc_state_t*)pre;
+        //free_utf8_file declared in utf8_encoder/utf8_encoder.h
         free_utf8_file(state->file);
         free(pre);
     }
@@ -76,7 +77,7 @@ int get_preproc_status(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
+        preproc_state_t *state = (preproc_state_t*)pre;
         return state->status;
     }
 
@@ -90,7 +91,7 @@ char *get_preproc_error_msg(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
+        preproc_state_t *state = (preproc_state_t*)pre;
         return state->error_msg;
     }
 
@@ -104,7 +105,8 @@ int get_preproc_line_number(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
+        preproc_state_t *state = (preproc_state_t*)pre;
+        //get_utf8_file_line_number() declared in utf8_file/utf8_file.h
         return get_utf8_file_line_number(state->file);
     }
 
@@ -118,7 +120,8 @@ int get_preproc_line_position(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
+        preproc_state_t *state = (preproc_state_t*)pre;
+        //get_utf8_file_line_position() declared in utf8_file/utf8_file.h
         return get_utf8_file_line_position(state->file);
     }
 
@@ -136,27 +139,27 @@ void reset_preproc_status(preproc_t pre)
     //when testing that
 }
 
+//short description
 static int32_t read_normal_mode_char(preproc_state_t *state);
 
+//short description
 static int32_t read_name_mode_char(preproc_state_t *state);
 
-static int32_t read_string_mode_char(preproc_state_t *state);
-
+//short description
 static int read_next_byte_from_encoder_helper(preproc_state_t *state);
-
-static int32_t set_preproc_read_error(preproc_state_t *state, char *msg);
 
 int read_preproc_char(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
+        preproc_state_t *state = (preproc_state_t*)pre;
         switch(state->status)
         {
             case PREPROC_OK:
                 switch(state->read_mode)
                 {
                     case NORMAL_MODE:
+                        //is_utf8_encoder_empty() declared in 
                         if(is_utf8_encoder_empty(&state->encoder))
                         {
                             int32_t ch = read_normal_mode_char(state);
@@ -168,6 +171,7 @@ int read_preproc_char(preproc_t pre)
                             else
                             {
                                 state->last_read = ch;
+                                //encode_codepoint_to_utf8() declared in 
                                 encode_codepoint_to_utf8(&state->encoder, ch);
                                 return
                                      read_next_byte_from_encoder_helper(state);
@@ -202,13 +206,19 @@ int read_preproc_char(preproc_t pre)
                             return read_next_byte_from_encoder_helper(state);
                         }
 
+                    case STRING_MODE:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg =
+                     "read_preproc_char() called after double quote was read.";
+                        return PREPROC_ERROR;
+
                     case EXTERN_NAME_MODE:
                         state->status = PREPROC_ERROR;
                         state->error_msg =
    "read_preproc_char() called before external name string was entirely read.";
                         return PREPROC_ERROR;
 
-                    case DATA_MODE:
+                    case DATA_STRING_MODE:
                         state->status = PREPROC_ERROR;
                         state->error_msg =
             "read_preproc_char() called before data string was entirely read.";
@@ -231,6 +241,7 @@ int read_preproc_char(preproc_t pre)
 
             case PREPROC_END_OF_STRING:
                 state->status = PREPROC_OK;
+                state->read_mode = NORMAL_MODE;
                 return read_preproc_char(pre);
 
             case PREPROC_ERROR:
@@ -250,51 +261,68 @@ int read_preproc_char(preproc_t pre)
     }
 }
 
+//short description
 static int read_string(preproc_state_t *state);
 
 int read_preproc_extern_name(preproc_t pre)
 {
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
-        if(state->status == PREPROC_OK)
+        preproc_state_t *state = (preproc_state_t*)pre;
+        switch(state->status)
         {
-            if(state->read_mode == NORMAL_MODE)
-            {
-                state->read_mode = EXTERN_NAME_MODE;
-                return read_preproc_extern_name(pre);
-            }
-
-            //check if read_mode is DATA_MODE
-            else
-            {
-                if(state->read_mode == EXTERN_NAME_MODE)
+            case PREPROC_OK:
+                switch(state->read_mode)
                 {
-                    return read_string(state);
+                    case NORMAL_MODE:
+                    case NAME_MODE:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg = 
+            "read_preproc_extern_name() called when no double quote was read.";
+                        return PREPROC_ERROR;
+
+                    case STRING_MODE:
+                        state->read_mode = EXTERN_NAME_MODE;
+                        return read_preproc_extern_name(pre);
+
+                    case EXTERN_NAME_MODE:
+                        return read_string(state);
+
+                    case DATA_STRING_MODE:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg = 
+             "read_preproc_extern_name() called while reading a data string.";
+                        return PREPROC_ERROR;
+
+                    default:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg =
+                                    "Preprocessor read mode was unknown value";
+                        return PREPROC_ERROR;
                 }
 
-                else
-                {
-                    //setting this without the helper would avoid having to
-                    //cast it to int
-                    return set_preproc_read_error(state,
-             "read_preproc_extern_name() called while reading a data string.");
-                }
-            }
-        }
+            case PREPROC_EOF:
+                //returning an error might stop whatever loop the caller
+                //is stuck in where it continued reading after PREPROC_EOF.
+                state->status = PREPROC_ERROR;
+                state->error_msg =
+                       "read_preproc_extern_name() called after EOF was read.";
+                return PREPROC_ERROR;
 
-        else
-        {
-            if(state->status == PREPROC_END_OF_STRING)
-            {
-                //Maybe set an error, if this function is called a second time
-                //maybe the caller might recognize an error instead.
-            }
+            case PREPROC_END_OF_STRING:
+                state->status = PREPROC_ERROR;
+                state->error_msg =
+             "read_preproc_extern_name() called after end of string was read.";
+                return PREPROC_ERROR;
 
-            else
-            {
-                return (int)state->status;
-            }
+            case PREPROC_ERROR:
+                return PREPROC_ERROR;
+
+            default:
+                state->status = PREPROC_ERROR;
+                state->error_msg =
+                               "Preprocessor status was set to unknown value.";
+                return PREPROC_ERROR;
         }
     }
 
@@ -304,54 +332,70 @@ int read_preproc_extern_name(preproc_t pre)
     }
 }
 
-int read_preproc_data(preproc_t pre)
+int read_preproc_data_string(preproc_t pre)
 {
-    //make this match the function above when it is finished
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
-        if(state->status == PREPROC_OK)
+        preproc_state_t *state = (preproc_state_t*)pre;
+        switch(state->status)
         {
-            //if normal mode check for quote and set mode
-            if(state->read_mode == NORMAL_MODE)
-            {
-                //find initial quote
-                state->read_mode = STRING_MODE;
-                int32_t ch = read_preproc_char(pre);
-                if(ch == '\"')
+            case PREPROC_OK:
+                switch(state->read_mode)
                 {
-                    state->read_mode = DATA_MODE;
+                    case NORMAL_MODE:
+                    case NAME_MODE:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg = 
+            "read_preproc_data_string() called when no double quote was read.";
+                        return PREPROC_ERROR;
+
+                    case STRING_MODE:
+                        state->read_mode = DATA_STRING_MODE;
+                        return read_preproc_data_string(pre);
+
+                    case EXTERN_NAME_MODE:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg = 
+           "read_preproc_data_string() called while reading an external name.";
+                        return PREPROC_ERROR;
+
+                    case DATA_STRING_MODE:
+
+                        return read_string(state);
+
+                    default:
+                        state->status = PREPROC_ERROR;
+                        state->error_msg =
+                                    "Preprocessor read mode was unknown value";
+                        return PREPROC_ERROR;
                 }
 
-                else
-                {
-                    return set_preproc_read_error(state, "Expected string.");
-                }
-            }
+            case PREPROC_EOF:
+                //returning an error might stop whatever loop the caller
+                //is stuck in where it continued reading after PREPROC_EOF.
+                state->status = PREPROC_ERROR;
+                state->error_msg =
+                       "read_preproc_data_string() called after EOF was read.";
+                return PREPROC_ERROR;
 
-            //check if read_mode is DATA_MODE
-            else
-            {
-                if(state->read_mode == DATA_MODE)
-                {
-                    return read_string(state);
-                }
+            case PREPROC_END_OF_STRING:
+                state->status = PREPROC_ERROR;
+                state->error_msg =
+             "read_preproc_data_string() called after end of string was read.";
+                return PREPROC_ERROR;
 
-                else
-                {
-                    return set_preproc_read_error(state,
-             "read_preproc_data() called while reading an external name.");
-                }
-            }
-        }
+            case PREPROC_ERROR:
+                return PREPROC_ERROR;
 
-        else
-        {
-            return state->status;
+            default:
+                state->status = PREPROC_ERROR;
+                state->error_msg =
+                               "Preprocessor status was set to unknown value.";
+                return PREPROC_ERROR;
         }
     }
 
-    else
+    else//NULL pointer passed to function
     {
         return PREPROC_ERROR;
     }
@@ -362,11 +406,25 @@ char *get_preproc_line_string(preproc_t pre, int line_number)
     //Check if the return value of get_utf8_file_line_string() is NULL
     if(pre != NULL)
     {
-        preproc_state_t *state = get_state(pre);
-        return
-            convert_string_to_utf8(&state->encoder,
-                          get_utf8_file_line_length(&state->file, line_number),
-                         get_utf8_file_line_string(&state->file, line_number));
+        preproc_state_t *state = (preproc_state_t*)pre;
+        //get_utf8_file_line_length() declared in 
+        size_t line_length = get_utf8_file_line_length(state->file,
+                                                       line_number);
+        //get_utf8_file_line_string() declared in 
+        int32_t *line_string = get_utf8_file_line_string(state->file,
+                                                         line_number);
+        if(line_length == 0 || line_string == NULL)
+        {
+            return NULL;
+        }
+
+        else
+        {
+            //convert_string_to_utf8() declared in 
+            return convert_string_to_utf8(&state->encoder,
+                                          line_length,
+                                          line_string);
+        }
     }
 
     else
@@ -377,45 +435,19 @@ char *get_preproc_line_string(preproc_t pre, int line_number)
 
 // *** private functions ***
 
-static preproc_state_t *get_state(preproc_t pre)
-{
-    return (preproc_state_t *)pre;
-}
-
-static int read_next_byte_from_encoder_helper(preproc_state_t *state)
-{
-    //call read_next_byte_from_encoder() and check for ENCODER_ERROR
-    return 0;
-}
-
-static int32_t set_preproc_read_error(preproc_state_t *state, char *msg)
-{
-    state->status = PREPROC_ERROR;
-    state->error_msg = msg;
-    return PREPROC_ERROR;
-}
-
+//short description
 static int32_t remove_extra_spaces(preproc_state_t *state);
+
+//short description
+static int32_t set_preproc_read_error(preproc_state_t *state, char *msg);
 
 static int32_t read_normal_mode_char(preproc_state_t *state)
 {
-    //remove string stuff
     int32_t ch = remove_extra_spaces(state);
     if(ch < 128)
     {
-        //STRING_MODE exist just to have a way to read the first double quote
-        //of a string using read_preproc_char()
-        //remove this stuff
-        if(state->read_mode == NORMAL_MODE)
-        {
-            if(ch == '\"')
-            {
-                return set_preproc_read_error(state,
-                                                         "Unexpected string.");
-            }
-        }
-
-        if(iscntrl(ch))
+        //Be sure what this checks for.
+        if(iscntrl((int)ch))
         {
             return set_preproc_read_error(state,
                                               "Unexpected control character.");
@@ -436,9 +468,56 @@ static int32_t read_normal_mode_char(preproc_state_t *state)
 
 static int32_t read_name_mode_char(preproc_state_t *state)
 {
-    return 0;
+    int32_t ch = remove_extra_spaces(state);
+    if(ch < 128)
+    {
+        switch(ch)
+        {
+
+        }
+        //name:   $(<letter> | <digit> | _ | . | + | - | * | / | \ | ^ | ~ | = | < | > | ! | ? | @ | # | $ | % | & | | | : | ' | `)+
+        //space switches state->read_mode to NORMAL_MODE
+    }
+
+    else
+    {
+        return set_preproc_read_error(state,
+                                              "Unexpected unicode character.");
+    }
 }
 
+static int read_next_byte_from_encoder_helper(preproc_state_t *state)
+{
+    //read_next_byte_from_encoder() declared in 
+    int byte = read_next_byte_from_encoder(&state->encoder);
+    if(byte < 0)
+    {
+        state->status = PREPROC_ERROR;
+        if(byte == ENCODER_ERROR)
+        {
+            //get_utf8_encoder_error_msg() declared in 
+            state->error_msg = get_utf8_encoder_error_msg(&state->encoder);
+        }
+
+        else
+        {
+            state->error_msg =
+              "read_next_byte_from_encoder() returned unknown negative value.";
+        }
+
+        return PREPROC_ERROR;
+    }
+
+    else
+    {
+        return byte;
+    }
+}
+
+//short description
+static int32_t convert_escape_sequences(preproc_state_t *state);
+
+//short description
 static int32_t set_read_error_if_eof(preproc_state_t *state,
                                      int32_t ch,
                                      char *msg);
@@ -470,7 +549,24 @@ static int read_string(preproc_state_t *state)
         return read_next_byte_from_encoder(&state->encoder);
     }
 }
+static int read_extern_name_byte(preproc_state_t *state)
+{
+    if(is_utf8_encoder_empty(&state->encoder))
+    {
 
+    }
+
+    else
+    {
+        return read_next_byte_from_encoder(&state->encoder);
+    }
+}
+
+static int32_t read_extern_name_char(preproc_state_t *state)
+{
+
+}
+//short description
 static int32_t insert_space_after_symbols(preproc_state_t *state);
 
 static int32_t remove_extra_spaces(preproc_state_t *state)
@@ -487,10 +583,20 @@ static int32_t remove_extra_spaces(preproc_state_t *state)
     return ch;
 }
 
+static int32_t set_preproc_read_error(preproc_state_t *state, char *msg)
+{
+    state->status = PREPROC_ERROR;
+    state->error_msg = msg;
+    return PREPROC_ERROR;
+}
+
+//short description
 static int32_t remove_escaped_newlines(preproc_state_t *state);
 
+//short description
 static int32_t read_byte_escape(preproc_state_t *state, int32 ch);
 
+//short description
 static int32_t read_unicode_escape(preproc_state_t *state);
 
 static int32_t convert_escape_sequences(preproc_state_t *state)
@@ -577,26 +683,28 @@ static int32_t set_read_error_if_eof(preproc_state_t *state,
     }
 }
 
+//short description
 static int32_t convert_whitespace(preproc_state_t *state);
 
 static int32_t insert_space_after_symbols(preproc_state_t *state)
 {
     //Maybe add open square bracket
-    if(state->last_read == '(' ||
-       state->last_read == ')' ||
-       state->last_read == '\"')
+    switch(state->last_read)
     {
-        return ' ';
-    }
-
-    else
-    {
-        return convert_whitespace(state);
+        case '\"':
+            state->read_mode = STRING_MODE;
+        case '(':
+        case ')':
+            return ' ';
+        default:
+            return convert_whitespace(state);
     }
 }
 
+//short description
 static int32_t read_char(preproc_state_t *state);
 
+//short description
 static void set_next_read(preproc_state_t *state, int32_t next_ch);
 
 static int32_t remove_escaped_newlines(preproc_state_t *state)
@@ -623,7 +731,8 @@ static int32_t remove_escaped_newlines(preproc_state_t *state)
 static int32_t read_byte_escape(preproc_state_t *state, int32 ch)
 {
     //This should probably return an int because the encoder might choke on this
-    if(state->read_mode == DATA_MODE)
+    //read_byte_escape_from_utf8_file() should return an int too.
+    if(state->read_mode == DATA_STRING_MODE)
     {
         int32_t byte =
         read_byte_escape_from_utf8_file(&state->file, ch);
@@ -663,6 +772,7 @@ static int32_t read_unicode_escape(preproc_state_t *state)
     }
 }
 
+//short description
 static int32_t remove_comments(preproc_state_t *state);
 
 static int32_t convert_whitespace(preproc_state_t *state)
@@ -729,10 +839,13 @@ static void set_next_read(preproc_state_t *state, int32_t next_ch)
     }
 }
 
+//short description
 static int32_t insert_space_before_symbols(preproc_state_t *state);
 
+//short description
 static int32_t remove_multiline_comment(preproc_state_t *state);
 
+//short description
 static int32_t remove_line_comment(preproc_state_t *state);
 
 static int32_t remove_comments(preproc_state_t *state)
