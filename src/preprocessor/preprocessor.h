@@ -131,7 +131,7 @@ int  read_preproc_extern_name(preproc_t pre);
  * @param pre The preprocessor to read from.
  * @return A byte of utf8 encoded text or PREPROC_ERROR or PREPROC_END_OF_STRING.
  */
-int  read_preproc_data(preproc_t pre);
+int  read_preproc_data_string(preproc_t pre);
 
 /**
  * @brief Not implemented, returns NULL.
