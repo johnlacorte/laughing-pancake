@@ -125,18 +125,23 @@ int get_preproc_line_position(preproc_t pre)
 void reset_preproc_status(preproc_t pre)
 {
     //check if pointer is NULL
-    //if I need to pass through any utf8_file_t error when returning a
-    //preprocessor read error I may have to reset utf8_file_t as well
-    //when testing that
+    //I imagine this should reset status, error message, and read_mode back to
+    //what they were after open_preproc() was called but I am going to wait
+    //until I write tests to fill this in.
 }
 
-//short description
+//Returns the next codepoint preprocessed for NORMAL_MODE. Comments removed
+//spaces between tokens etc. May return PREPROC_ERROR or PREPROC_EOF.
 static int32_t read_normal_mode_char(preproc_state_t *state);
 
-//short description
+//Returns the next codepoint preprocessed for NAME_MODE. NORMAL_MODE and
+//NAME_MODE switch back and forth automatically and read_preproc_char() calls
+//the right function automatically so they can have seperate rules for valid
+//characters.
 static int32_t read_name_mode_char(preproc_state_t *state);
 
-//short description
+//Reads the next byte from the utf8 encoder. Functions with helper in the name
+//check the return values and set the preprocessor error if needed.
 static int read_next_byte_from_encoder_helper(preproc_state_t *state);
 
 int read_preproc_char(preproc_t pre)
@@ -258,7 +263,8 @@ int read_preproc_char(preproc_t pre)
     }
 }
 
-//short description
+//Preprocesses a string returning one byte at a time of utf8 or PREPROC_ERROR
+//or PREPROC_END_OF_STRING.
 static int read_string(preproc_state_t *state);
 
 int read_preproc_extern_name(preproc_t pre)
@@ -432,10 +438,12 @@ char *get_preproc_line_string(preproc_t pre, int line_number)
 
 // *** private functions ***
 
-//short description
+//Removes extra spaces in NORMAL_MODE or NAME_MODE.
 static int32_t remove_extra_spaces(preproc_state_t *state);
 
-//short description
+//Sets the preproc_state_t status to PREPROC_ERROR, sets error_msg to msg and
+//returns (int32_t) PREPROC_ERROR. For functions that return int32_t. There
+//isn't a similar function for functions that return int.
 static int32_t set_preproc_read_error(preproc_state_t *state, char *msg);
 
 static int32_t read_normal_mode_char(preproc_state_t *state)
@@ -470,6 +478,8 @@ static int32_t read_normal_mode_char(preproc_state_t *state)
 
 static int32_t read_name_mode_char(preproc_state_t *state)
 {
+    //NAME_MODE so name tokens can be seperated while allowing '$' in names and
+    //so I can have seperate rules for valid characters.
     //name:   $(<letter> | <digit> | _ | . | + | - | * | / | \ | ^ | ~ | = | < | > | ! | ? | @ | # | $ | % | & | | | : | ' | `)+
     int32_t ch = remove_extra_spaces(state);
     if(ch < 128)
@@ -527,10 +537,11 @@ static int read_next_byte_from_encoder_helper(preproc_state_t *state)
     }
 }
 
-//short description
+//Removes escaped newlines in strings ahead of any other escape sequences.
 static int32_t remove_escaped_newlines(preproc_state_t *state);
 
-//short description
+//Converts escape sequences in strings. Returns a byte of utf8 any additional
+//bytes can be read from the encoder.
 static int convert_escape_sequences(preproc_state_t *state);
 
 static int read_string(preproc_state_t *state)
@@ -565,7 +576,8 @@ static int read_string(preproc_state_t *state)
     }
 }
 
-//short description
+//Returns a space after certain symbols to make sure they are seperated from
+//the next token.
 static int32_t insert_space_after_symbols(preproc_state_t *state);
 
 static int32_t remove_extra_spaces(preproc_state_t *state)
@@ -589,17 +601,15 @@ static int32_t set_preproc_read_error(preproc_state_t *state, char *msg)
     return PREPROC_ERROR;
 }
 
-//short description
-static int read_byte_escape(preproc_state_t *state, int32 ch);
+//Reads a byte escape ( like \ff) in data strings. Returns an error in extern
+//name strings.
+static int read_byte_escape(preproc_state_t *state, int32_t ch);
 
-//short description
+//Returns the codepoint of a unicode escape in any kind of string or an error.
 static int read_unicode_escape(preproc_state_t *state);
 
 static int convert_escape_sequences(preproc_state_t *state)
 {
-    //This uses remove_escaped_newlines() for reading and converts whitespace
-    //escapes and unicode escapes for both modes but only byte escapes for
-    //DATA_MODE
     int32_t next_ch = remove_escaped_newlines(state);
     switch(next_ch)
     {
@@ -651,12 +661,11 @@ static int convert_escape_sequences(preproc_state_t *state)
     } 
 }
 
-//short description
+//Returns spaces instead of tabs and newlines in NORMAL_MODE or NAME_MODE.
 static int32_t convert_whitespace(preproc_state_t *state);
 
 static int32_t insert_space_after_symbols(preproc_state_t *state)
 {
-    //Maybe add open square bracket
     switch(state->last_read)
     {
         case '\"':
@@ -669,10 +678,16 @@ static int32_t insert_space_after_symbols(preproc_state_t *state)
     }
 }
 
-//short description
+//Following a call to set_next_read() this returns the character stored in the
+//preprocessor state temp variable. There was only a need to ever look ahead
+//one character and pushing back somewhere with line and position counter and
+//different encodings are complicated. Otherwise reads next codepoint from
+//utf8 file and sets preprocessor error if needed.
 static int32_t read_char(preproc_state_t *state);
 
-//short description
+//The codepoint passed to this function will be returned on the next call to
+//read_char(). read_char() will return an error if set_next_read() is called
+//twice in a row.
 static void set_next_read(preproc_state_t *state, int32_t next_ch);
 
 static int32_t remove_escaped_newlines(preproc_state_t *state)
@@ -696,10 +711,8 @@ static int32_t remove_escaped_newlines(preproc_state_t *state)
     return ch;
 }
 
-static int read_byte_escape(preproc_state_t *state, int32 ch)
+static int read_byte_escape(preproc_state_t *state, int32_t ch)
 {
-    //This should probably return an int because the encoder might choke on this
-    //read_byte_escape_from_utf8_file() should return an int too.
     if(state->read_mode == DATA_STRING_MODE)
     {
         //read_byte_escape_from_utf8_file() is declared in utf8_file/utf8_file.h
@@ -748,7 +761,8 @@ static int read_unicode_escape(preproc_state_t *state)
     }
 }
 
-//short description
+//Removes comments in NORMAL_MODE or NAME_MODE. It should leave a space in its
+//place.
 static int32_t remove_comments(preproc_state_t *state);
 
 static int32_t convert_whitespace(preproc_state_t *state)
@@ -767,8 +781,6 @@ static int32_t convert_whitespace(preproc_state_t *state)
 
 static int32_t read_char(preproc_state_t *state)
 {
-    //I think I should be a little more thorough of checking different negative
-    //values.
     if(state->return_temp_next)
     {
         state->return_temp_next = false;
@@ -784,17 +796,27 @@ static int32_t read_char(preproc_state_t *state)
             if(ch == UTF8_FILE_EOF)
             {
                 state->status = PREPROC_EOF;
+                return PREPROC_EOF;
             }
 
             else
             {
                 state->status = PREPROC_ERROR;
-                //get_utf8_file_error_msg() is declared in
-                //utf8_file/utf8_file.h
-                state->error_msg = get_utf8_file_error_msg(state->file);
+                if(ch == UTF8_FILE_ERROR)
+                {
+                    //get_utf8_file_error_msg() is declared in
+                    //utf8_file/utf8_file.h
+                    state->error_msg = get_utf8_file_error_msg(state->file);
+                }
+                
+                else
+                {
+                    state->error_msg =
+                 "read_char_from_utf8_file() returned unknown negative value.";
+                }
+                
+                return PREPROC_ERROR;
             }
-
-            return state->status;
         }
 
         else
@@ -820,13 +842,13 @@ static void set_next_read(preproc_state_t *state, int32_t next_ch)
     }
 }
 
-//short description
+//Returns a space before certain symbols if there wasn't one already.
 static int32_t insert_space_before_symbols(preproc_state_t *state);
 
-//short description
+//Removes comments surrounded by (; ... ;) including nested comments.
 static int32_t remove_multiline_comment(preproc_state_t *state);
 
-//short description
+//Removes comments that go to the end of the line ;; ..... \n.
 static int32_t remove_line_comment(preproc_state_t *state);
 
 static int32_t remove_comments(preproc_state_t *state)
@@ -864,8 +886,6 @@ static int32_t remove_comments(preproc_state_t *state)
 
                 else
                 {
-                    //This probably should be an error, I don't think
-                    //semicolons are used for anything else
                     set_next_read(state, next_ch);
                 }
             }
@@ -913,38 +933,42 @@ static int32_t remove_multiline_comment(preproc_state_t *state)
     while(depth > 0)
     {
         int32_t ch = read_char(state);
-        if(ch == PREPROC_EOF)
+        switch(ch)
         {
-            return set_preproc_read_error(state,
+            case PREPROC_EOF:
+                return set_preproc_read_error(state,
                                   "End of file reached before end of comment");
-        }
 
-        if(ch == '(')
-        {
-            int32_t next_ch = read_char(state);
-            if(next_ch == ';')
-            {
-                depth++;
-            }
+            case PREPROC_ERROR:
+                return PREPROC_ERROR;
+                
+            case '(':
+                int32_t next_ch = read_char(state);
+                if(next_ch == ';')
+                {
+                    depth++;
+                }
 
-            else
-            {
-                set_next_read(state, next_ch);
-            }
-        }
+                else
+                {
+                    set_next_read(state, next_ch);
+                }
+                
+                break;
+                
+            case ';':
+                int32_t next_ch = read_char(state);
+                if(next_ch == ')')
+                {
+                    depth--;
+                }
 
-        if(ch == ';')
-        {
-            int32_t next_ch = read_char(state);
-            if(next_ch == ')')
-            {
-                depth--;
-            }
-
-            else
-            {
-                set_next_read(state, next_ch);
-            }
+                else
+                {
+                    set_next_read(state, next_ch);
+                }
+                
+                break;
         }
     }
 
