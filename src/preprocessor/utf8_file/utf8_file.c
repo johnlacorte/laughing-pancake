@@ -55,7 +55,7 @@ utf8_file_t open_utf8_file(char *filename)
     }
 }
 
-void close_utf8_file(utf8_file_t file)
+void free_utf8_file(utf8_file_t file)
 {
     if(file != NULL)
     {
