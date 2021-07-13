@@ -97,8 +97,6 @@ bool test_good_read_EOF()
     return (read_char_from_utf8_file(good_file) == UTF8_FILE_EOF);
 }
 
-//Finish rewriting the rest from here
-
 bool test_good_close_file()
 {
     free_utf8_file(good_file);
@@ -274,22 +272,27 @@ bool test_bad_utf8_eof_in_sequence()
 \u{aa (unexpected EOF)
 */
 
-char_stream_t escapes_file;
+utf8_file_t escapes_file;
 
 bool test_open_escapes_file()
 {
-    init_char_stream(&escapes_file);
-    int return_value = open_char_stream(&escapes_file, "unicode_escapes.txt");
+    escapes_file = open_utf8_file("unicode_escapes.txt");
 
-    return (return_value == CHAR_STREAM_OK);
+    return (get_utf8_file_status(escapes_file) == UTF8_FILE_OK);
 }
 
 bool test_good_escape_sequence()
 {
-    int return_value = read_char_from_utf8_file(escapes_file);
+    return 
+(
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_char_from_utf8_file(escapes_file) == 'u') &&
+    (read_unicode_escape_from_utf8_file(escapes_file) == 0x1111)
+);
 
-    return (return_value == 0x1111);
 }
+
+//Finish rewriting the rest from here
 
 bool test_error_passthrough_in_escape()
 {
@@ -299,6 +302,8 @@ bool test_error_passthrough_in_escape()
 
     return
 (
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_char_from_utf8_file(escapes_file) == 'u') &&
     (return_value == CHAR_STREAM_READ_FAILED) &&
     ((!strcmp(msg, "UTF8 sequence starts with invalid byte.")))
 );
