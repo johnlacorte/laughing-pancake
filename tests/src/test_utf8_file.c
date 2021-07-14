@@ -297,78 +297,76 @@ bool test_good_escape_sequence()
 bool test_error_passthrough_in_escape()
 {
     //0x80
-    int return_value = read_char_from_utf8_file(escapes_file);
-    char *msg = char_stream_error_msg(&escapes_file);
-
     return
 (
     (read_char_from_utf8_file(escapes_file) == '\\') &&
     (read_char_from_utf8_file(escapes_file) == 'u') &&
-    (return_value == CHAR_STREAM_READ_FAILED) &&
-    ((!strcmp(msg, "UTF8 sequence starts with invalid byte.")))
+    (read_unicode_escape_from_utf8_file(escapes_file) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "UTF8 sequence starts with invalid byte.")))
 );
 
 }
 
 bool test_no_open_curly_in_escape()
 {
-    char_stream_reset(&escapes_file);
-    int return_value = read_char_from_utf8_file(escapes_file);
-    char *msg = char_stream_error_msg(&escapes_file);
-
+    reset_utf8_file_status(escapes_file);
     return
 (
-    (return_value == CHAR_STREAM_READ_FAILED) &&
-    ((!strcmp(msg, "Expected \'{\' in unicode escape sequence.")))
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_char_from_utf8_file(escapes_file) == 'u') &&
+    (read_unicode_escape_from_utf8_file(escapes_file) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "Expected \'{\' in unicode escape sequence.")))
 );
 
 }
 
 bool test_not_hex_digit_in_escape()
 {
-    char_stream_reset(&escapes_file);
-    int return_value = read_char_from_utf8_file(escapes_file);
-    char *msg = char_stream_error_msg(&escapes_file);
-
+    reset_utf8_file_status(escapes_file);
     return
 (
-    (return_value == CHAR_STREAM_READ_FAILED) &&
-    ((!strcmp(msg, "Expected hex digit in unicode escape sequence.")))
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_char_from_utf8_file(escapes_file) == 'u') &&
+    (read_unicode_escape_from_utf8_file(escapes_file) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "Expected hex digit in unicode escape sequence.")))
 );
 
 }
 
 bool test_too_long_escape()
 {
-    char_stream_reset(&escapes_file);
-    int return_value = read_char_from_utf8_file(escapes_file);
-    char *msg = char_stream_error_msg(&escapes_file);
-
+    reset_utf8_file_status(escapes_file);
     return
 (
-    (return_value == CHAR_STREAM_READ_FAILED) &&
-    ((!strcmp(msg, "A maximum of 6 hex digits are allowed in unicode escape sequences.")))
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_char_from_utf8_file(escapes_file) == 'u') &&
+    (read_unicode_escape_from_utf8_file(escapes_file) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "A maximum of 6 hex digits are allowed in unicode escape sequences.")))
 );
 
 }
 
 bool test_eof_in_escape()
 {
-    char_stream_reset(&escapes_file);
-    int return_value = read_char_from_utf8_file(escapes_file);
-    char *msg = char_stream_error_msg(&escapes_file);
-    close_char_stream(&escapes_file);
-
+    reset_utf8_file_status(escapes_file);
     return
 (
-    (return_value == CHAR_STREAM_READ_FAILED) &&
-    ((!strcmp(msg, "Unexpected EOF in unicode escape sequence.")))
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_char_from_utf8_file(escapes_file) == 'u') &&
+    (read_unicode_escape_from_utf8_file(escapes_file) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "Unexpected EOF in unicode escape sequence.")))
 );
 
 }
 
+bool test_close_unicode_escape()
+{
+    free_utf8_file(escapes_file);
+    return true;
+}
+
 //Number Of Tests To Run
-#define NUMBER_OF_TESTS 28
+#define NUMBER_OF_TESTS 29
 
 // Array Of Test Descriptions And Test Function Pointers
 test_t tests[NUMBER_OF_TESTS] = 
@@ -400,7 +398,8 @@ test_t tests[NUMBER_OF_TESTS] =
     {"Trigger error \"Expected \'{\' in unicode escape sequence.\"", test_no_open_curly_in_escape},
     {"Trigger error \"Expected hex digit in unicode escape sequence.\"", test_not_hex_digit_in_escape},
     {"Trigger error \"A maximum of 6 hex digits are allowed in unicode escape sequences.\"", test_too_long_escape},
-    {"Trigger error \"Unexpected EOF in unicode escape sequence.\"", test_eof_in_escape}
+    {"Trigger error \"Unexpected EOF in unicode escape sequence.\"", test_eof_in_escape},
+    {"Close file", test_close_unicode_escape}
 };
 
 int main()
