@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "../test_lib/test_lib.h"
@@ -13,6 +14,11 @@
 
 // Global variables for the next couple functions.
 utf8_file_t good_file;
+
+bool pass_null_to_all_functions()
+{
+    return true;
+}
 
 bool test_no_file()
 {
@@ -118,11 +124,6 @@ ED A0 80(utf16 surrogate)
 F7 BF BF BF(too large codepoint)
 C1(first byte okay followed by EOF)
 */
-
-bool pass_null_to all functions()
-{
-    return false;
-}
 
 // Global variables for the next couple functions.
 utf8_file_t bad_file;
@@ -365,13 +366,99 @@ bool test_close_unicode_escape()
     return true;
 }
 
+/* byte_escapes.txt
+\ff
+\f(byte 0x80)
+\g
+\fg
+\f(EOF)
+ */
+
+bool test_open_bytes_escapes()
+{
+    escapes_file = open_utf8_file("byte_escapes.txt");
+
+    return (get_utf8_file_status(escapes_file) == UTF8_FILE_OK);
+}
+
+bool test_good_byte_escape()
+{
+/*
+    int32_t slash = read_char_from_utf8_file(escapes_file);
+    int32_t first_digit = read_char_from_utf8_file(escapes_file);
+    int32_t return_value = read_byte_escape_from_utf8_file(escapes_file, first_digit);
+    char *msg = get_utf8_file_error_msg(escapes_file);
+    printf("\nslash=%d\nfirst_digit=%d\nreturn_value=%d\nerror_message=%s\n", slash, first_digit, return_value, msg);
+    return false;
+*/
+    return
+(
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_byte_escape_from_utf8_file(escapes_file, read_char_from_utf8_file(escapes_file)) == 0xff)
+);
+
+}
+
+bool test_encoding_error_in_byte_escape()
+{
+    return
+(
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_byte_escape_from_utf8_file(escapes_file, read_char_from_utf8_file(escapes_file)) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "UTF8 sequence starts with invalid byte.")))
+);
+
+}
+
+bool test_first_digit_not_hex_in_byte_escape()
+{
+    reset_utf8_file_status(escapes_file);
+    return
+(
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_byte_escape_from_utf8_file(escapes_file, read_char_from_utf8_file(escapes_file)) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "First character in byte escape wasn\'t hex digit (preprocessor did something wrong).")))
+);
+
+}
+
+bool test_second_digit_not_hex_in_byte_escape()
+{
+    reset_utf8_file_status(escapes_file);
+    return
+(
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_byte_escape_from_utf8_file(escapes_file, read_char_from_utf8_file(escapes_file)) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "Second character in byte escape wasn\'t hex digit.")))
+);
+
+}
+
+bool test_eof_in_byte_escape()
+{
+    reset_utf8_file_status(escapes_file);
+    return
+(
+    (read_char_from_utf8_file(escapes_file) == '\\') &&
+    (read_byte_escape_from_utf8_file(escapes_file, read_char_from_utf8_file(escapes_file)) == UTF8_FILE_ERROR) &&
+    ((!strcmp(get_utf8_file_error_msg(escapes_file), "Unexpected EOF in byte escape sequence.")))
+);
+
+}
+
+bool test_close_byte_escapes()
+{
+    free_utf8_file(escapes_file);
+    return true;
+}
+
 //Number Of Tests To Run
-#define NUMBER_OF_TESTS 29
+#define NUMBER_OF_TESTS 36
 
 // Array Of Test Descriptions And Test Function Pointers
 test_t tests[NUMBER_OF_TESTS] = 
 {
-    {"Pass NULL to all functions", pass_null_to all functions},
+    {"Pass NULL to all functions", pass_null_to_all_functions},
     {"File not found error", test_no_file},
     {"Opening \"good_utf8.txt\"", test_open_good},
     {"Byte order mark detected", test_byte_order_mark_skipped},
@@ -399,7 +486,14 @@ test_t tests[NUMBER_OF_TESTS] =
     {"Trigger error \"Expected hex digit in unicode escape sequence.\"", test_not_hex_digit_in_escape},
     {"Trigger error \"A maximum of 6 hex digits are allowed in unicode escape sequences.\"", test_too_long_escape},
     {"Trigger error \"Unexpected EOF in unicode escape sequence.\"", test_eof_in_escape},
-    {"Close file", test_close_unicode_escape}
+    {"Close file", test_close_unicode_escape},
+    {"Opening \"byte_escapes.txt\"", test_open_bytes_escapes},
+    {"Reading \\ff", test_good_byte_escape},
+    {"Trigger error \"UTF8 sequence starts with invalid byte.\"", test_encoding_error_in_byte_escape},
+    {"Trigger error \"First character in byte escape wasn\'t hex digit (preprocessor did something wrong).\"", test_first_digit_not_hex_in_byte_escape},
+    {"Trigger error \"Second character in byte escape wasn\'t hex digit.\"", test_second_digit_not_hex_in_byte_escape},
+    {"Trigger error \"Unexpected EOF in byte escape sequence.\"", test_eof_in_byte_escape},
+    {"Close file", test_close_byte_escapes}
 };
 
 int main()
