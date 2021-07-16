@@ -15,7 +15,7 @@
 #define UTF8_FILE_H
 
 ///Status of utf8_file_t when it can be read from.
-#define UTF8_FILE_OK 1
+#define UTF8_FILE_OK 0
 
 ///Status of utf8_file_t when it reaches the end of file.
 #define UTF8_FILE_EOF -1

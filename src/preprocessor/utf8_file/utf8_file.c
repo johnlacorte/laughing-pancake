@@ -177,18 +177,26 @@ int32_t read_char_from_utf8_file(utf8_file_t file)
     if(file != NULL)
     {
         utf8_file_state_t *state = (utf8_file_state_t*)file;
-        int32_t ch = read_and_update_position(state);
-        //open_char_stream() will eat the BOM at the beginning of the file if there
-        //is any, afterwards BOM will generate an error
-        if(ch != BYTE_ORDER_MARKER)
+        if(state->status < 0)
         {
-            return ch;
+            return state->status;
         }
 
         else
         {
-            return set_utf8_file_read_error(state,
+            int32_t ch = read_and_update_position(state);
+            //open_char_stream() will eat the BOM at the beginning of the file if there
+            //is any, afterwards BOM will generate an error
+            if(ch != BYTE_ORDER_MARKER)
+            {
+                return ch;
+            }
+
+            else
+            {
+                return set_utf8_file_read_error(state,
                                         "Byte Order Marker read in file.");
+            }
         }
     }
 
@@ -478,7 +486,7 @@ static int32_t hex_digit_to_int(int32_t ch)
             {
                 if(ch <= 'F')
                 {
-                    return (ch - 'A' + 9);
+                    return (ch - 'A' + 10);
                 }
 
                 else
@@ -487,7 +495,7 @@ static int32_t hex_digit_to_int(int32_t ch)
                     {
                         if(ch <= 'f')
                         {
-                            return (ch - 'a' + 9);
+                            return (ch - 'a' + 10);
                         }
                     }
                 }
