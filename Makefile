@@ -4,30 +4,23 @@ CFLAGS=-c -Wall -Wextra -pedantic -std=c11
 LDFLAGS=-o
 CCOMPILE=cd build; ${CC} ${CFLAGS} ../
 
-bin/wb: tests/test_input_file_list tests/test_char_stream
+bin/wb: tests/test_utf8_file
 	touch bin/wb
 
-tests/test_input_file_list: build/char_stream.o build/input_file_list.o build/test_lib.o build/test_input_file_list.o
+tests/test_utf8_file: build/utf8_file.o build/test_lib.o build/test_utf8_file.o
 	${LD} -g ${LDFLAGS} $@ $^
-	cd tests; ./test_input_file_list
+	cd tests; ./test_utf8_file
 
-tests/test_char_stream: build/char_stream.o build/test_lib.o build/test_char_stream.o
-	${LD} -g ${LDFLAGS} $@ $^
-	cd tests; ./test_char_stream
-
-build/test_input_file_list.o: tests/src/test_input_file_list.c
-	${CCOMPILE}$<
-
-build/test_char_stream.o: tests/src/test_char_stream.c
+build/test_utf8_file.o: tests/src/test_utf8_file.c
 	${CCOMPILE}$<
 
 build/preprocessor.o: src/preprocessor/preprocessor.c src/preprocessor/preprocessor.h
 	${CCOMPILE}$<
 
-build/input_file_list.o: src/preprocessor/input_file_list/input_file_list.c src/preprocessor/input_file_list/input_file_list.h
-	cd build; ${CC} -c -Wall -Wextra -pedantic -D_BSD_SOURCE ../$<
+build/utf8_encoder.o: src/preprocessor/utf8_encoder/utf8_encoder.c src/preprocessor/utf8_encoder/utf8_encoder.h
+	${CCOMPILE}$<
 
-build/char_stream.o: src/preprocessor/input_file_list/char_stream/char_stream.c src/preprocessor/input_file_list/char_stream/char_stream.h
+build/utf8_file.o: src/preprocessor/utf8_file/utf8_file.c src/preprocessor/utf8_file/utf8_file.h
 	${CCOMPILE}$<
 
 build/test_lib.o: tests/test_lib/test_lib.c tests/test_lib/test_lib.h
