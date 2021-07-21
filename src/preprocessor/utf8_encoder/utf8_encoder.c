@@ -28,12 +28,15 @@ bool is_utf8_encoder_empty(utf8_encoder_t *encoder)
         if(encoder->remaining_bytes < 0)
         {
             encoder->status = ENCODER_ERROR;
+            //This should never happen nor is there a way to trigger this.
+            encoder->error_msg =
+                        "remaining_bytes in utf8_encoder is a negative value.";
             return false;
         }
 
         else
         {
-            return (encoder->remaining_bytes <= 0);
+            return (encoder->remaining_bytes == 0);
         }
     }
 }
@@ -102,23 +105,38 @@ void encode_codepoint_to_utf8(utf8_encoder_t *encoder, int32_t ch)
                 }
             }
         }
+
+        else
+        {
+            encoder->status = ENCODER_ERROR;
+            encoder->error_msg =
+                               "Encoder was given a codepoint when not empty.";
+        }
     }
 }
 
 int read_next_byte_from_encoder(utf8_encoder_t *encoder)
 {
-    if(encoder->remaining_bytes > 0)
+    if(encoder->status == ENCODER_ERROR)
     {
-        int byte = 4 - encoder->bytes[encoder->remaining_bytes];
-        encoder->remaining_bytes--;
-        return byte;
+        return ENCODER_ERROR;
     }
 
     else
     {
-        encoder->status = ENCODER_ERROR;
-        encoder->error_msg = "Preprocessor tried reading from empty utf8 encoder.";
-        return ENCODER_ERROR; 
+        if(encoder->remaining_bytes > 0)
+        {
+            int byte = 4 - encoder->bytes[encoder->remaining_bytes];
+            encoder->remaining_bytes--;
+            return byte;
+        }
+
+        else
+        {
+            encoder->status = ENCODER_ERROR;
+            encoder->error_msg = "Preprocessor tried reading from empty utf8 encoder.";
+            return ENCODER_ERROR; 
+        }
     }
 }
 
@@ -135,9 +153,11 @@ char *convert_string_to_utf8(utf8_encoder_t *encoder,
                              size_t length,
                              int32_t *string)
 {
-    if(length > 0)
+    //If I don't replace this with print_line() the branches that return NULL
+    //need to set an error message.
+    if(string != NULL)
     {
-        if(string != NULL)
+        if(length > 0)
         {
             char *return_string = malloc(sizeof(char) * length);
             if(return_string != NULL)
@@ -174,7 +194,22 @@ char *convert_string_to_utf8(utf8_encoder_t *encoder,
                     return NULL;
                 }
             }
+
+            else
+            {
+                return NULL;
+            }
         }
+
+        else
+        {
+            return NULL;
+        }
+    }
+
+    else
+    {
+        return NULL;
     }
 
     return NULL;
