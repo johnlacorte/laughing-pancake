@@ -4,12 +4,19 @@ CFLAGS=-c -Wall -Wextra -pedantic -std=c11
 LDFLAGS=-o
 CCOMPILE=cd build; ${CC} ${CFLAGS} ../
 
-bin/wb: tests/test_utf8_file
+bin/wb: tests/test_utf8_encoder tests/test_utf8_file
 	touch bin/wb
+
+tests/test_utf8_encoder: build/utf8_encoder.o build/test_lib.o build/test_utf8_encoder.o
+	${LD} -g ${LDFLAGS} $@ $^
+	cd tests; ./test_utf8_encoder
 
 tests/test_utf8_file: build/utf8_file.o build/test_lib.o build/test_utf8_file.o
 	${LD} -g ${LDFLAGS} $@ $^
 	cd tests; ./test_utf8_file
+
+build/test_utf8_encoder.o: tests/src/test_utf8_encoder.c
+	${CCOMPILE}$<
 
 build/test_utf8_file.o: tests/src/test_utf8_file.c
 	${CCOMPILE}$<
