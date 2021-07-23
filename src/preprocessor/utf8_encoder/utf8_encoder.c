@@ -48,6 +48,7 @@ void encode_codepoint_to_utf8(utf8_encoder_t *encoder, int32_t ch)
     {
         if(is_utf8_encoder_empty(encoder))
         {
+
             if(ch < 0)
             {
                 encoder->status = ENCODER_ERROR;
@@ -57,6 +58,7 @@ void encode_codepoint_to_utf8(utf8_encoder_t *encoder, int32_t ch)
 
             else
             {
+                //int ch_as_int = (int)ch;
                 if(ch < 128)
                 {
                     encoder->bytes[3] = ch;
@@ -126,7 +128,7 @@ int read_next_byte_from_encoder(utf8_encoder_t *encoder)
     {
         if(encoder->remaining_bytes > 0)
         {
-            int byte = 4 - encoder->bytes[encoder->remaining_bytes];
+            int byte = encoder->bytes[4 - encoder->remaining_bytes];
             encoder->remaining_bytes--;
             return byte;
         }
