@@ -16,7 +16,7 @@ utf8_encoder_t encoder;
 bool test_init_encoder()
 {
     init_utf8_encoder(&encoder);
-    return (!strcmp(get_utf8_encoder_error_msg(&encoder), "Encoder okay.");
+    return (!strcmp(get_utf8_encoder_error_msg(&encoder), "Encoder okay."));
 }
 
 bool test_encoder_is_empty_after_init()
@@ -28,12 +28,13 @@ bool test_good_encode()
 {
     //U+1f431 a cat emoji
     //011111 010000 110001
-    //11100000 10011111 10010000 10110001
-    //0xe0 0x9f 0x90 0xb1
-    encode_codepoint_to_utf8(&encoder, 0x1f431);
+    //11110000 10011111 10010000 10110001
+    //0xf0 0x9f 0x90 0xb1
+    encode_codepoint_to_utf8(&encoder, 0x01f431);
+
     return
 (
-    (read_next_byte_from_encoder(&encoder) == 0xe0) &&
+    (read_next_byte_from_encoder(&encoder) == 0xf0) &&
     (read_next_byte_from_encoder(&encoder) == 0x9f) &&
     (read_next_byte_from_encoder(&encoder) == 0x90) &&
     (read_next_byte_from_encoder(&encoder) == 0xb1) &&
@@ -56,7 +57,7 @@ bool test_encode_negative()
 bool test_codepoint_too_big()
 {
     init_utf8_encoder(&encoder);
-    encode_codepoint_to_utf8(&encoder, 0xF7BFBFBF);
+    encode_codepoint_to_utf8(&encoder, 0x77BFBFBF);
     return
 (
     (read_next_byte_from_encoder(&encoder) == ENCODER_ERROR) &&
@@ -68,8 +69,8 @@ bool test_codepoint_too_big()
 bool test_encoder_not_empty()
 {
     init_utf8_encoder(&encoder);
-    encode_codepoint_to_utf8(&encode, 'a');
-    encode_codepoint_to_utf8(&encode, 'a');
+    encode_codepoint_to_utf8(&encoder, 'a');
+    encode_codepoint_to_utf8(&encoder, 'a');
     return
 (
     (read_next_byte_from_encoder(&encoder) == ENCODER_ERROR) &&
