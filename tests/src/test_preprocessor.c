@@ -4,20 +4,20 @@
 #include "../test_lib/test_lib.h"
 
 // Module Header Files
-//#include "../../path_to_header_file/header_file.h"
+#include "../../src/preprocessor/preprocessor.h"
 
 // Global Variables
-
+preproc_t pre;
 
 // Test Functions
-bool test_one()
+bool test_pass_null_to_functions()
 {
-    return (1 == 1);
+    return false;
 }
 
-bool test_two()
+bool test_open_preprocessor()
 {
-    return (2 == 2);
+    return false;
 }
 
 //Number Of Tests To Run
@@ -26,14 +26,14 @@ bool test_two()
 // Array Of Test Descriptions And Test Function Pointers
 test_t tests[NUMBER_OF_TESTS] =
 {
-    {"One equals one", test_one},
-    {"Two equals two", test_test_two}
+    {"Test passing null to functions", test_pass_null_to_functions},
+    {"Open a file for preprocessing", test_open_preprocessor}
 };
 
 int main()
 {
-    return tester(NUMBER_OF_TESTS, tests, "Testing assumptions about numbers");
+    return tester(NUMBER_OF_TESTS, tests, "Testing preprocessor");
 }
 
-/* --- end of "test_char_stream.c" --- */
+/* --- end of "test_file_name.c" --- */
 
