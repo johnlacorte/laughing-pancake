@@ -1,5 +1,7 @@
 // Standard Library Header Files
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "../test_lib/test_lib.h"
 
@@ -12,11 +14,22 @@ preproc_t pre;
 // Test Functions
 bool test_pass_null_to_functions()
 {
-    return false;
+    return
+(
+    (get_preproc_status(NULL) == PREPROC_ERROR)&&
+    (!strcmp(get_preproc_error_msg(NULL), "Failed to allocate memory for preprocessor.")) &&
+    (get_preproc_line_number(NULL) == -1) &&
+    (get_preproc_line_position(NULL) == -1) &&
+    (read_preproc_char(NULL) == PREPROC_ERROR) &&
+    (read_preproc_extern_name(NULL) == PREPROC_ERROR) &&
+    (read_preproc_data_string(NULL) == PREPROC_ERROR)
+);
+
 }
 
 bool test_open_preprocessor()
 {
+    
     return false;
 }
 
