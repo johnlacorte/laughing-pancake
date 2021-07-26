@@ -136,7 +136,7 @@ int  read_preproc_data_string(preproc_t pre);
 /**
  * @brief Not implemented, returns NULL.
  *
- * When this is finished, it will return the line from a file. This just returns
+ * print_preproc_line() probably makes more sense than this. This just returns
  * NULL at the moment. I think it will be needed for parser errors.
  * @param pre
  * @param line_number
