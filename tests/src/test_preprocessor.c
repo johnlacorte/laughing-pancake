@@ -48,7 +48,7 @@ bool test_close_good()
 test_t tests[NUMBER_OF_TESTS] =
 {
     {"Test passing null to functions", test_pass_null_to_functions},
-    {"Open a file for preprocessing", test_open_preprocessor},
+    {"Open a file for preprocessing", test_open_good},
     {"Close file", test_close_good}
 };
 
