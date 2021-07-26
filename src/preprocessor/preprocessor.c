@@ -881,7 +881,7 @@ static int32_t remove_comments(preproc_state_t *state)
                 {
                     // ;) is a winky error
                     return set_preproc_read_error(state,
-                                                 "Unexpected end of comment.");
+                                                 "Unexpected end of comment found.");
                 }
 
                 else
@@ -933,6 +933,7 @@ static int32_t remove_multiline_comment(preproc_state_t *state)
     while(depth > 0)
     {
         int32_t ch = read_char(state);
+        int32_t next_ch;
         switch(ch)
         {
             case PREPROC_EOF:
@@ -943,7 +944,7 @@ static int32_t remove_multiline_comment(preproc_state_t *state)
                 return PREPROC_ERROR;
                 
             case '(':
-                int32_t next_ch = read_char(state);
+                next_ch = read_char(state);
                 if(next_ch == ';')
                 {
                     depth++;
@@ -957,7 +958,7 @@ static int32_t remove_multiline_comment(preproc_state_t *state)
                 break;
                 
             case ';':
-                int32_t next_ch = read_char(state);
+                next_ch = read_char(state);
                 if(next_ch == ')')
                 {
                     depth--;
