@@ -27,20 +27,29 @@ bool test_pass_null_to_functions()
 
 }
 
-bool test_open_preprocessor()
+bool test_open_good()
 {
-    
-    return false;
+    //I think open_preproc() should set status to PREPROC_ERROR if utf8_file
+    //fails to open (it doesn't currently). 
+    pre = open_preproc("good_preprocessor.txt");
+    return (get_preproc_status(pre) == PREPROC_OK);
+}
+
+bool test_close_good()
+{
+    free_preproc(pre);
+    return true;
 }
 
 //Number Of Tests To Run
-#define NUMBER_OF_TESTS 2
+#define NUMBER_OF_TESTS 3
 
 // Array Of Test Descriptions And Test Function Pointers
 test_t tests[NUMBER_OF_TESTS] =
 {
     {"Test passing null to functions", test_pass_null_to_functions},
-    {"Open a file for preprocessing", test_open_preprocessor}
+    {"Open a file for preprocessing", test_open_preprocessor},
+    {"Close file", test_close_good}
 };
 
 int main()
