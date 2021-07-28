@@ -854,17 +854,21 @@ static int32_t remove_line_comment(preproc_state_t *state);
 static int32_t remove_comments(preproc_state_t *state)
 {
     int32_t ch = insert_space_before_symbols(state);
-    if(ch == '(')
+    while(ch == '(' || ch == ';')
     {
-        int32_t next_ch = read_char(state);
-        if(next_ch == ';')
+        if(ch == '(')
         {
-            ch = remove_multiline_comment(state);
-        }
+            int32_t next_ch = read_char(state);
+            if(next_ch == ';')
+            {
+                ch = remove_multiline_comment(state);
+            }
 
-        else //Not a comment
-        {
-            set_next_read(state, next_ch);
+            else //Not a comment
+            {
+                set_next_read(state, next_ch);
+                break;
+            }
         }
 
         if(ch == ';')
@@ -887,6 +891,7 @@ static int32_t remove_comments(preproc_state_t *state)
                 else
                 {
                     set_next_read(state, next_ch);
+                    break;
                 }
             }
         }
