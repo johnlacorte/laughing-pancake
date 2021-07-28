@@ -1,0 +1,4 @@
+;;line comment
+(;multiline comment
+(;nestedcomment;);)a	b
+c    d(e$f$g)
