@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,12 +52,12 @@ int main()
 
     else
     {
-        //print to stderr
+        fprintf(stderr, "Failed to open files or allocate memory.\n"); 
         return 1;
     } 
 }
 
-int read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *constants_list);
+bool read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *constants_list);
 
 void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file);
 
@@ -73,6 +74,7 @@ int read_all_tokens(trie_node_t *trie_head,
     while(ch != EOF)
     {
         //push back ch
+        ungetc(ch, input_file);
         if(!read_token(input_file, trie_head, constants_list))
         {
             return 1;
@@ -84,9 +86,47 @@ int read_all_tokens(trie_node_t *trie_head,
     return 0;
 }
 
-int read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *constants_list)
+bool read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *constants_list)
 {
+    char buffer[64];
+    int i = 0;
+    int ch = fgetc(input_file);
+    while(ch != ' ' && i < 64)
+    {
+        //To be thorough this should check for other kinds of whitespace and
+        //other characters not allowed like control characters
+        if(ch == '\n' || ch == EOF)
+        {
+            fprintf(stderr, "Constant line must be <constant><space><replacement><newline>\n");
+            return false;
+        }
 
+        else
+        {
+            buffer[i] = ch;
+            i++;
+            ch = fgetc(input_file);
+        }
+        
+    }
+
+    if(i < 64)
+    {
+        int j = i;
+        //To be thorough this should check if the next character is whitespace
+        ch = fgetc(input_file);
+        while(ch != \n && ch != EOF)
+        {
+            if()
+        }
+    }
+
+    else
+    {
+        fprintf(stderr, "Constant line too long.\n");
+        return false;
+    }
+    
 }
 
 void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file)
