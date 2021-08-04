@@ -5,7 +5,7 @@
 
 struct constant_node
 {
-    char *constant_string;
+    char constant_string[64];
     struct constant_node *next;
 } typedef constant_node_t;
 
@@ -17,11 +17,12 @@ typedef struct
 
 struct trie_node
 {
-    char *token_constant_name;
+    char token_constant_name[64];
     trie_node *node_array[256];
 } typedef trie_node_t;
 
-int read_all_tokens(trie_node_t *head,
+int read_all_tokens(trie_node_t *trie_head,
+                    constants_list_t *constants_list,
                     FILE *input_file,
                     FILE *constant_file,
                     FILE *matcher_file
@@ -32,21 +33,21 @@ int read_all_tokens(trie_node_t *head,
 int main()
 {
     trie_node_t *trie_head = calloc(1, sizeof(trie_node_t));
-    constants_list_t *constants_list = calloc(1, sizeof(constant_list_t));
+    constants_list_t *constants_list = calloc(1, sizeof(constants_list_t));
     FILE *input_file = fopen("input_file", "r");
     FILE *constants_file = fopen("keyword_tokens.h", "w");
     FILE *matcher_file = fopen("keyword_matcher.c", "w");
     if((trie_head != NULL) &&
        (constants_list != NULL) &&
        (input_file != NULL) &&
-       (constant_file != NULL) && 
+       (constants_file != NULL) && 
        (matcher_file != NULL)
       )
     {
         return read_all_tokens(trie_head,
                                constants_list,
                                input_file,
-                               constant_file,
+                               constants_file,
                                matcher_file);
     }
 
@@ -57,14 +58,14 @@ int main()
     } 
 }
 
-bool read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *constants_list);
+bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *constants_list);
 
 void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file);
 
 void dump_constants_to_file(constants_list_t *constants_list, FILE *constants_file);
 
 int read_all_tokens(trie_node_t *trie_head,
-                    constants_list *constants_list
+                    constants_list_t *constants_list,
                     FILE *input_file,
                     FILE *constants_file,
                     FILE *matcher_file
@@ -117,7 +118,7 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *cons
     {
         int constant_line_index = constant_name_index;
         ch = fgetc(input_file);
-        while(ch != \n && ch != EOF && constant_line_index < 64)
+        while(ch != '\n' && ch != EOF && constant_line_index < 64)
         {
             if(ch == ' ')
             {
@@ -151,14 +152,32 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *cons
     return false;
 }
 
+void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth);
+
 void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file)
 {
-
+    //write beginning of matcher
+    fprintf(matcher_file, "\
+#include \"token_types.h\"\n\
+#include \"keyword_tokens.h\"\n\
+\n\
+int keyword_matcher(char *token_buffer)\
+{");
+    //write trie to file
+    write_trie_node(trie_head, matcher_file, 0);
+    //write end of file
+    fprintf(matcher_file, "}\n\n");
 }
 
-void dump_constants_to_file(constant_node_t *constants_head, FILE *constants_file)
+void dump_constants_to_file(constants_list_t *constants_list, FILE *constants_file)
 {
-
+    //write beginning of header file
+    fprintf(constants_file, "\
+#ifndef KEYWORD_TOKENS_H\n\
+#define KEYWORD_TOKENS_H\n\
+\n");
+    //write list
+    //write end of header file
 }
 
 bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length)
@@ -169,4 +188,9 @@ bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_
 bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int length)
 {
     return false;
+}
+
+void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth)
+{
+
 }
