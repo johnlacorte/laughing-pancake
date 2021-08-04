@@ -6,7 +6,7 @@
  * places single spaces between tokens, can be used to read external names,
  * and can be used to read data strings.
  */
-#ifndef PREPOCESSOR_H
+#ifndef PREPROCESSOR_H
 #define PREPROCESSOR_H
 
 ///Status of preproc_t when it can be read from.
