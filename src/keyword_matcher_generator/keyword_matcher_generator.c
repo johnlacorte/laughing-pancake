@@ -86,12 +86,16 @@ int read_all_tokens(trie_node_t *trie_head,
     return 0;
 }
 
-bool read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *constants_list)
+bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length);
+
+bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int length);
+
+bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *constants_list)
 {
     char buffer[64];
-    int i = 0;
+    int constant_name_index = 0;
     int ch = fgetc(input_file);
-    while(ch != ' ' && i < 64)
+    while(ch != ' ' && constant_name_index < 64)
     {
         //To be thorough this should check for other kinds of whitespace and
         //other characters not allowed like control characters
@@ -103,30 +107,48 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constant_list_t *const
 
         else
         {
-            buffer[i] = ch;
-            i++;
+            buffer[constant_name_index] = ch;
+            constant_name_index++;
             ch = fgetc(input_file);
         }
-        
     }
 
-    if(i < 64)
+    if(constant_name_index < 64)
     {
-        int j = i;
-        //To be thorough this should check if the next character is whitespace
+        int constant_line_index = constant_name_index;
         ch = fgetc(input_file);
-        while(ch != \n && ch != EOF)
+        while(ch != \n && ch != EOF && constant_line_index < 64)
         {
-            if()
+            if(ch == ' ')
+            {
+                fprintf(stderr, "Second space in constant line.\n");
+                return false;
+            }
+
+            else
+            {
+                buffer[constant_line_index] = ch;
+                constant_line_index++;
+                ch = fgetc(input_file);
+            }
+        }
+
+        if(constant_line_index < 64)
+        {
+            if(add_constant_line_to_list(constants_list, buffer, constant_line_index))
+            {
+                if(read_token_line_into_trie(trie_head, buffer, constant_name_index))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 
-    else
-    {
-        fprintf(stderr, "Constant line too long.\n");
-        return false;
-    }
-    
+    fprintf(stderr, "Constant line too long.\n");
+    return false;
 }
 
 void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file)
@@ -137,4 +159,14 @@ void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file)
 void dump_constants_to_file(constant_node_t *constants_head, FILE *constants_file)
 {
 
+}
+
+bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length)
+{
+    return false;
+}
+
+bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int length)
+{
+    return false;
 }
