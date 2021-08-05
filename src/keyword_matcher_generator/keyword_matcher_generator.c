@@ -93,6 +93,10 @@ bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int 
 
 bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *constants_list)
 {
+    //now that I think of it there shouldn't be an eof on the first line at all
+    //I think it would be nice if each token was instead three lines with the
+    //first line being the Doxygen comment. Maybe storing it in the constants
+    //list
     char buffer[64];
     int constant_name_index = 0;
     int ch = fgetc(input_file);
@@ -118,7 +122,7 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *cons
     {
         int constant_line_index = constant_name_index;
         ch = fgetc(input_file);
-        while(ch != '\n' && ch != EOF && constant_line_index < 64)
+        while(ch != '\n' &&  constant_line_index < 64)
         {
             if(ch == ' ')
             {
@@ -128,9 +132,18 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *cons
 
             else
             {
-                buffer[constant_line_index] = ch;
-                constant_line_index++;
-                ch = fgetc(input_file);
+                if(ch == EOF)
+                {
+                    fprintf(stderr, "Unexpected EOF in constant line.\n");
+                    return false;
+                }
+                
+                else
+                {
+                    buffer[constant_line_index] = ch;
+                    constant_line_index++;
+                    ch = fgetc(input_file);
+                }
             }
         }
 
@@ -156,32 +169,45 @@ void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth);
 
 void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file)
 {
+    //This should at least have comments at the begining of the file describing
+    //what it is
     //write beginning of matcher
     fprintf(matcher_file, "\
 #include \"token_types.h\"\n\
 #include \"keyword_tokens.h\"\n\
 \n\
 int keyword_matcher(char *token_buffer)\
-{");
+{\n\
+  switch(token_buffer[0])\n");
     //write trie to file
-    write_trie_node(trie_head, matcher_file, 0);
+    write_trie_node(trie_head, matcher_file, 1);
     //write end of file
-    fprintf(matcher_file, "}\n\n");
+    fprintf(matcher_file, "  }\n}\n\n");
 }
 
 void dump_constants_to_file(constants_list_t *constants_list, FILE *constants_file)
 {
+    //This should at least have comments at the begining of the file describing
+    //what it is
     //write beginning of header file
     fprintf(constants_file, "\
 #ifndef KEYWORD_TOKENS_H\n\
 #define KEYWORD_TOKENS_H\n\
 \n");
     //write list
+    constant_node_t *current = constants_list->head;
+    while(current != NULL)
+    {
+        fprintf(constants_file, "%s\n", current->constant_string);
+        current = current->next;
+    }
     //write end of header file
+    fprintf(constants_file, "\n#endif\n\n");
 }
 
 bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length)
 {
+    //allocate new node and copy line with a null byte at length index
     return false;
 }
 
@@ -190,7 +216,20 @@ bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int 
     return false;
 }
 
+void indent_line(FILE *matcher_file, int depth);
+
 void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth)
 {
+    //check 0 index is not NULL(this returns the constant name)
+    //loop through the array looking for non-NULL pointers
+    //if found write case and opening of next switch block then recursively
+    //call this function on the pointer.
+    //when it returns, add closing curly brace and empty line before moving
+    //to the next non-NULL pointer. When the end of the array is reached
+    //add default case and return.
+}
 
+void indent_line(FILE *matcher_file, int depth)
+{
+    //(depth + 1) * 2 spaces
 }
