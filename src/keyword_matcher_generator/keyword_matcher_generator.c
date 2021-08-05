@@ -89,7 +89,7 @@ int read_all_tokens(trie_node_t *trie_head,
 
 bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length);
 
-bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int length);
+bool read_token_line_into_trie(trie_node_t *trie_head, FILE *input_file, char *constant_name, int length);
 
 bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *constants_list)
 {
@@ -208,10 +208,32 @@ void dump_constants_to_file(constants_list_t *constants_list, FILE *constants_fi
 bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length)
 {
     //allocate new node and copy line with a null byte at length index
-    return false;
+    constant_node_t *new = calloc(1, sizeof(constant_node_t));
+    if(new != NULL)
+    {
+        //copy string to new node
+        if(constants_list->head == NULL)
+        {
+            constants_list->head = new;
+            constants_list->tail = new;
+            return true;
+        }
+
+        else
+        {
+            //add to the end of the list
+            return true;
+        }
+    }
+
+    else
+    {
+        fprintf(stderr, "Failed to allocate memory for constant line.\n");
+        return false;
+    }
 }
 
-bool read_token_line_into_trie(trie_node_t *trie_head, char *constant_name, int length)
+bool read_token_line_into_trie(trie_node_t *trie_head, FILE *input_file, char *constant_name, int length)
 {
     return false;
 }
