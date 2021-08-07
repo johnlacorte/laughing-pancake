@@ -64,6 +64,10 @@ void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file);
 
 void dump_constants_to_file(constants_list_t *constants_list, FILE *constants_file);
 
+void free_trie(trie_node_t *trie_head);
+
+void free_constants_list(constants_list_t *constants_list);
+
 int read_all_tokens(trie_node_t *trie_head,
                     constants_list_t *constants_list,
                     FILE *input_file,
@@ -84,12 +88,17 @@ int read_all_tokens(trie_node_t *trie_head,
         ch = fgetc(input_file);
     }
 
+    //I'm assuming the two dump functions and free functions go here somewhere
+    dump_trie_to_file(trie_head, matcher_file);
+    dump_constants_to_file(constants_list, constants_file);
+    free_trie(trie_head);
+    free_constants_list(constants_list);
     return 0;
 }
 
 bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length);
 
-bool read_token_line_into_trie(trie_node_t *trie_head, FILE *input_file, char *constant_name, int length);
+bool read_token_line_into_trie(trie_node_t *current_node, FILE *input_file, char *constant_name, int length);
 
 bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *constants_list)
 {
@@ -151,7 +160,7 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *cons
         {
             if(add_constant_line_to_list(constants_list, buffer, constant_line_index))
             {
-                if(read_token_line_into_trie(trie_head, buffer, constant_name_index))
+                if(read_token_line_into_trie(trie_head, input_file, buffer, constant_name_index))
                 {
                     return true;
                 }
@@ -198,11 +207,37 @@ void dump_constants_to_file(constants_list_t *constants_list, FILE *constants_fi
     constant_node_t *current = constants_list->head;
     while(current != NULL)
     {
-        fprintf(constants_file, "%s\n", current->constant_string);
+        fprintf(constants_file, "#define %s\n", current->constant_string);
         current = current->next;
     }
     //write end of header file
     fprintf(constants_file, "\n#endif\n\n");
+}
+
+void free_trie(trie_node_t *trie_head)
+{
+    if(trie_head != NULL)
+    {
+        for(int i = 0; i < 256; i++)
+        {
+            free_trie(trie_head->node_array[i]);
+        }
+
+        free(trie_head);
+    }
+}
+
+void free_constants_list(constants_list_t *constants_list)
+{
+    constant_node_t *current = constants_list->head;
+    while(current != NULL)
+    {
+        constant_node_t *next = current->next;
+        free(current);
+        current = next;
+    }
+
+    free(constants_list);
 }
 
 bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_line, int length)
@@ -212,6 +247,14 @@ bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_
     if(new != NULL)
     {
         //copy string to new node
+        char *constant_string = new->constant_string;
+        for(int i = 0; i < length; i++)
+        {
+            constant_string[i] = constant_line[i];
+        }
+
+        constant_string[length] = '\0';
+        new->next = NULL;
         if(constants_list->head == NULL)
         {
             constants_list->head = new;
@@ -222,6 +265,9 @@ bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_
         else
         {
             //add to the end of the list
+            constant_node_t *tail_node = constants_list->tail;
+            tail_node->next = new;
+            constants_list->tail = new;
             return true;
         }
     }
@@ -233,9 +279,55 @@ bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_
     }
 }
 
-bool read_token_line_into_trie(trie_node_t *trie_head, FILE *input_file, char *constant_name, int length)
+bool read_token_line_into_trie(trie_node_t *current_node, FILE *input_file, char *constant_name, int length)
 {
-    return false;
+    int ch = fgetc(input_file);
+    if(ch == '\n' || ch == EOF)
+    {
+        trie_node_t *new = calloc(1, sizeof(trie_node_t));
+        if(new != NULL)
+        {
+            //copy string
+            for(int i = 0; i < length; i++)
+            {
+                new->token_constant_name[i] = constant_name[i];
+            }
+
+            new->token_constant_name[length] = '\0';
+            current_node->node_array[ch] = new;
+            return true;
+        }
+
+        else
+        {
+            //error message
+            return false;
+        }
+    }
+
+    else
+    {
+        if(current_node->node_array[ch] == NULL)
+        {
+            trie_node_t *new = calloc(1, sizeof(trie_node_t));
+            if(new != NULL)
+            {
+                current_node->node_array[ch] = new;
+                return read_token_line_into_trie(current_node->node_array[ch], input_file, constant_name, length);
+            }
+
+            else
+            {
+                //error message
+                return false;
+            }
+        }
+
+        else
+        {
+            return read_token_line_into_trie(current_node->node_array[ch], input_file, constant_name, length);
+        }
+    }
 }
 
 void indent_line(FILE *matcher_file, int depth);
@@ -243,7 +335,37 @@ void indent_line(FILE *matcher_file, int depth);
 void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth)
 {
     //check 0 index is not NULL(this returns the constant name)
+    if(node->node_array[0] != NULL)
+    {
+        indent_line(matcher_file, depth);
+        fprintf(matcher_file, "case 0:\n");
+        indent_line(matcher_file, depth);
+        //return constant name of that node
+        trie_node_t *next_node = node->node_array[0];
+        fprintf(matcher_file, "return %s;\n\n", &next_node->token_constant_name);
+    }
+
     //loop through the array looking for non-NULL pointers
+    for(int i = 1; i < 256; i++)
+    {
+        if(node->node_array[i] != NULL)
+        {
+            indent_line(matcher_file, depth);
+            fprintf(matcher_file, "case %d:\n");
+            indent_line(matcher_file, depth);
+            fprintf(matcher_file, "switch(token_buffer[%d])\n", depth);
+            indent_line(matcher_file, depth);
+            fprintf(matcher_file, "{\n");
+            write_trie_node(node->node_array[i], matcher_file, (depth + 1));
+            indent_line(matcher_file, depth);
+            fprintf(matcher_file, "}\n\n");
+        }
+    }
+
+    indent_line(matcher_file, depth);
+    fprintf(matcher_file, "default:\n");
+    indent_line(matcher_file, depth);
+    fprintf(matcher_file, "return TOKEN_NO_MATCH;\n");
     //if found write case and opening of next switch block then recursively
     //call this function on the pointer.
     //when it returns, add closing curly brace and empty line before moving
@@ -254,4 +376,9 @@ void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth)
 void indent_line(FILE *matcher_file, int depth)
 {
     //(depth + 1) * 2 spaces
+    int spaces = (depth + 1) * 2;
+    for(int i = 0; i < spaces; i++)
+    {
+        fputc(' ', matcher_file);
+    }
 }
