@@ -18,7 +18,7 @@ typedef struct
 struct trie_node
 {
     char token_constant_name[64];
-    trie_node *node_array[256];
+    struct trie_node *node_array[256];
 } typedef trie_node_t;
 
 int read_all_tokens(trie_node_t *trie_head,
@@ -129,7 +129,9 @@ bool read_token(FILE *input_file, trie_node_t *trie_head, constants_list_t *cons
 
     if(constant_name_index < 64)
     {
-        int constant_line_index = constant_name_index;
+        //copy space too
+        buffer[constant_name_index] = ' ';
+        int constant_line_index = constant_name_index + 1;
         ch = fgetc(input_file);
         while(ch != '\n' &&  constant_line_index < 64)
         {
@@ -185,9 +187,10 @@ void dump_trie_to_file(trie_node_t *trie_head, FILE *matcher_file)
 #include \"token_types.h\"\n\
 #include \"keyword_tokens.h\"\n\
 \n\
-int keyword_matcher(char *token_buffer)\
+int keyword_matcher(char *token_buffer)\n\
 {\n\
-  switch(token_buffer[0])\n");
+  switch(token_buffer[0])\n\
+  {\n");
     //write trie to file
     write_trie_node(trie_head, matcher_file, 1);
     //write end of file
@@ -281,6 +284,7 @@ bool add_constant_line_to_list(constants_list_t *constants_list, char *constant_
 
 bool read_token_line_into_trie(trie_node_t *current_node, FILE *input_file, char *constant_name, int length)
 {
+    //I think I missed adding the end of line stuff here
     int ch = fgetc(input_file);
     if(ch == '\n' || ch == EOF)
     {
@@ -294,7 +298,7 @@ bool read_token_line_into_trie(trie_node_t *current_node, FILE *input_file, char
             }
 
             new->token_constant_name[length] = '\0';
-            current_node->node_array[ch] = new;
+            current_node->node_array[0] = new;
             return true;
         }
 
@@ -342,7 +346,7 @@ void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth)
         indent_line(matcher_file, depth);
         //return constant name of that node
         trie_node_t *next_node = node->node_array[0];
-        fprintf(matcher_file, "return %s;\n\n", &next_node->token_constant_name);
+        fprintf(matcher_file, "return %s;\n\n", next_node->token_constant_name);
     }
 
     //loop through the array looking for non-NULL pointers
@@ -351,7 +355,7 @@ void write_trie_node(trie_node_t *node, FILE *matcher_file, int depth)
         if(node->node_array[i] != NULL)
         {
             indent_line(matcher_file, depth);
-            fprintf(matcher_file, "case %d:\n");
+            fprintf(matcher_file, "case %d:\n", i);
             indent_line(matcher_file, depth);
             fprintf(matcher_file, "switch(token_buffer[%d])\n", depth);
             indent_line(matcher_file, depth);
