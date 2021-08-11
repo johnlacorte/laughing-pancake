@@ -34,7 +34,7 @@ int main()
 {
     trie_node_t *trie_head = calloc(1, sizeof(trie_node_t));
     constants_list_t *constants_list = calloc(1, sizeof(constants_list_t));
-    FILE *input_file = fopen("input_file", "r");
+    FILE *input_file = fopen("input_for_generator.txt", "r");
     FILE *constants_file = fopen("keyword_tokens.h", "w");
     FILE *matcher_file = fopen("keyword_matcher.c", "w");
     if((trie_head != NULL) &&
