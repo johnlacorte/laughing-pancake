@@ -672,6 +672,7 @@ static int32_t insert_space_after_symbols(preproc_state_t *state)
             state->read_mode = STRING_MODE;
         case '(':
         case ')':
+        case '=':
             return ' ';
         default:
             return convert_whitespace(state);
@@ -922,6 +923,7 @@ static int32_t insert_space_before_symbols(preproc_state_t *state)
             case '(':
             case ')':
             case ';':
+            case '=':
                 //emit space and push ch for next read
                 set_next_read(state, ch);
                 return ' ';
