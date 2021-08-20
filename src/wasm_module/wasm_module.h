@@ -31,6 +31,9 @@ typedef uint32_t flags_t; //is a varuint1
 
 wasm_module_t new_wasm_module(char *filename);
 
+//new function
+void free_wasm_module(wasm_module_t module);
+
 //I may change the names of these
 //It looks like the return values of these is the index maybe I should add
 //real error checking instead
