@@ -186,17 +186,19 @@ void print_token_location(token_t *token);
 void print_parser_error(token_t *token, char *msg)
 {
     print_token_location(token);
-    fprintf("%s\n\n");
+    fprintf(stderr, "%s\n\n", msg);
 }
 
 void print_token_error(token_t *token)
 {
-
+    print_token_location(token);
+    fprintf(stderr, "%s\n\n", token->token_string);
 }
 
 void print_no_match_error(token_t *token)
 {
-
+    print_token_location(token);
+    fprintf(stderr, "Unknown token \"%s\".\n\n");
 }
 
 void print_token_location(token_t *token)
