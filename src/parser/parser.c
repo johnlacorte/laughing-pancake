@@ -16,7 +16,7 @@ void read_token(parser_state_t *parser_state, token_t *token);
 
 void close_files_and_free_memory(parser_state_t *parser_state);
 
-int read_all_entires(parser_state_t *parser_state);
+int read_all_entrees(parser_state_t *parser_state, int line, int position);
 
 void print_parser_error(token_t *token, char *msg);
 
@@ -44,7 +44,6 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                     close_files_and_free_memory(&parser_state);
                     return 1;
                 case TOKEN_KEYWORD_MODULE:
-                    //Probably safe to open a module
                     read_token(&parser_state, &token);
                     switch(token.token_type)
                     {
@@ -56,7 +55,9 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                             //I think I should pass either the line and
                             //position of the token or a pointer to the token
                             //to the read_entries function
-                            return read_all_entires(&parser_state);
+                            return read_all_entires(&parser_state,
+                                                    token.token_line,
+                                                    token.token_position);
                         case TOKEN_CLOSE_PAREN:
                             read_token(&parser_state, &token);
                             switch(token.token_type)
@@ -74,6 +75,7 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                                     close_files_and_free_memory(&parser_state);
                                     return 1;
                             }
+
                         case TOKEN_EOF:
                         default:
                             //expected '(' or ')'
@@ -81,6 +83,7 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                             close_files_and_free_memory(&parser_state);
                             return 1;
                     }
+
                 case TOKEN_EOF:
                 default:
                     //expected module keyword
@@ -88,6 +91,7 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                     close_files_and_free_memory(&parser_state);
                     return 1;
             }
+
         case TOKEN_EOF:
         default:
             //expected '(' message
@@ -95,9 +99,6 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
             close_files_and_free_memory(&parser_state);
             return 1;
     }
-
-    //Remove if all cases have a return value
-    return 1;
 }
 
 void print_token_error(token_t *token);
@@ -128,9 +129,52 @@ void close_files_and_free_memory(parser_state_t *parser_state)
     free_wasm_module(parser_state->wasm_module);
 }
 
-int read_all_entires(parser_state_t *parser_state)
+bool read_entry(parser_state_t *parser_state, int line, int position);
+
+int read_all_entrees(parser_state_t *parser_state, int line, int position)
 {
-    return 1;
+    if(read_entry(parser_state, line, position))
+    {
+        token_t token;
+        read_token(parser_state, &token);
+        switch(token.token_type)
+        {
+            case TOKEN_ERROR:
+            case TOKEN_NO_MATCH:
+                close_files_and_free_memory(parser_state);
+                return 1;
+            case TOKEN_OPEN_PAREN:
+                return read_all_entires(parser_state,
+                                        token.token_line,
+                                        token.token_position);
+            case TOKEN_CLOSE_PAREN:
+                read_token(parser_state, &token);
+                switch(token.token_type)
+                {
+                    case TOKEN_ERROR:
+                    case TOKEN_NO_MATCH:
+                        close_files_and_free_memory(parser_state);
+                        return 1;
+                    case TOKEN_EOF:
+                        //write module if EOF
+                        return 0;
+                    default:
+                        print_parser_error(&token, "Expected EOF.");
+                        close_files_and_free_memory(parser_state);
+                        return 1;
+                }
+            case TOKEN_EOF:
+            default:
+                print_parser_error(&token, "Expected \')\' or \'(\'.");
+                close_files_and_free_memory(parser_state);
+                return 1;
+        }
+    }
+
+    else
+    {
+        return 1;
+    }
 }
 
 #include <stdio.h>
@@ -155,6 +199,11 @@ void print_no_match_error(token_t *token)
 }
 
 void print_token_location(token_t *token)
+{
+
+}
+
+bool read_entry(parser_state_t *parser_state, int line, int position)
 {
 
 }
