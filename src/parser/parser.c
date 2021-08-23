@@ -185,7 +185,8 @@ void print_token_location(token_t *token);
 
 void print_parser_error(token_t *token, char *msg)
 {
-
+    print_token_location(token);
+    fprintf("%s\n\n");
 }
 
 void print_token_error(token_t *token)
