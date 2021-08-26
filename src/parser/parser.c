@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include "../token_stream/token_stream.h"
 #include "../wasm_module/wasm_module.h"
@@ -203,12 +204,126 @@ void print_no_match_error(token_t *token)
 
 void print_token_location(token_t *token)
 {
-
+    fprintf(stderr,
+            "\n\nAt [%d, %d]\n\n",
+            token->token_line,
+            token->token_position);
 }
+
+bool read_type_entry(parser_state_t *parser_state, int line, int position);
+bool read_import_entry(parser_state_t *parser_state, int line, int position);
+bool read_func_entry(parser_state_t *parser_state, int line, int position);
+bool read_table_entry(parser_state_t *parser_state, int line, int position);
+bool read_memory_entry(parser_state_t *parser_state, int line, int position);
+bool read_global_entry(parser_state_t *parser_state, int line, int position);
+bool read_export_entry(parser_state_t *parser_state, int line, int position);
+bool read_start_entry(parser_state_t *parser_state, int line, int position);
+bool read_elem_entry(parser_state_t *parser_state, int line, int position);
+bool read_code_entry(parser_state_t *parser_state, int line, int position);
+bool read_data_entry(parser_state_t *parser_state, int line, int position);
+bool read_name_entry(parser_state_t *parser_state, int line, int position);
 
 bool read_entry(parser_state_t *parser_state, int line, int position)
 {
+    token_t token;
+    read_token(parser_state, &token);
+    switch(token.token_type)
+    {
+        case TOKEN_ERROR:
+        case TOKEN_NO_MATCH:
+            close_files_and_free_memory(parser_state);
+            return false;
+        case TOKEN_KEYWORD_TYPE:
+            return read_type_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_IMPORT:
+            return read_import_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_FUNC:
+            return read_func_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_TABLE:
+            return read_table_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_MEMORY:
+            return read_memory_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_GLOBAL:
+            return read_global_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_EXPORT:
+            return read_export_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_START:
+            return read_start_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_ELEM:
+            return read_elem_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_CODE:
+            return read_code_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_DATA:
+            return read_data_entry(parser_state, line, position);
+        case TOKEN_KEYWORD_NAME:
+            return read_name_entry(parser_state, line, position);
+        case TOKEN_EOF:
+        default:
+            print_parser_error(&token,
+                               "Expected keyword indicating type of entry.");
+            close_files_and_free_memory(parser_state);
+            return false;
+    }
+}
 
+bool read_type_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_import_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_func_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_table_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_memory_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_global_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_export_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_start_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_elem_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_code_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_data_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+bool read_name_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
 }
 
 /*** end of file "parser.c" ***/
