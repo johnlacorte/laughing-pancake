@@ -2,3 +2,6 @@
 *.exe
 textfiles/
 bin/wb
+tests/test_preprocessor
+tests/test_utf8_encoder
+tests/test_utf8_file
