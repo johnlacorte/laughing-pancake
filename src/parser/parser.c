@@ -1,13 +1,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "../token_stream/token_stream.h"
-#include "../wasm_module/wasm_module.h"
+#include "../wasm_module/wasm_constants.h"
+#include "../ast/ast.h"
 #include "parser.h"
 
 typedef struct
 {
     token_stream_t token_stream;
-    wasm_module_t wasm_module;
+    ast_t ast;
+    char *output_file;
     output_type_t output_type;
 }parser_state_t;
 
@@ -25,7 +27,8 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
 {
     parser_state_t parser_state;
     parser_state.token_stream = open_token_stream(input_file);
-    parser_state.wasm_module = new_wasm_module(output_file);
+    parser_state.ast = new_ast();
+    parser_state.output_file = output_file;
     parser_state.output_type = output_type;
     token_t token;
     read_token(&parser_state, &token);
@@ -127,7 +130,7 @@ void read_token(parser_state_t *parser_state, token_t *token)
 void close_files_and_free_memory(parser_state_t *parser_state)
 {
     free_token_stream(parser_state->token_stream);
-    free_wasm_module(parser_state->wasm_module);
+    free_ast(parser_state->ast);
 }
 
 bool read_entry(parser_state_t *parser_state, int line, int position);
@@ -266,9 +269,127 @@ bool read_entry(parser_state_t *parser_state, int line, int position)
     }
 }
 
+char *copy_identifier_name(token_t *token);
+
+//Calls read_all_type_results if result keyword is found 
+bool read_all_type_params(parser_state_t *parser_state,
+                     value_type_array_t params,
+                     value_type_array_t results);
+
+bool read_all_type_results(parser_state_t *parser_state,
+                     value_type_array_t params,
+                     value_type_array_t results);
+
 bool read_type_entry(parser_state_t *parser_state, int line, int position)
 {
-    return false;
+    char *name = NULL;
+    value_type_array_t params = new_value_type_array();
+    value_type_array_t results = new_value_type_array();
+    token_t token;
+    read_token(parser_state, &token);
+    if(token.token_type == TOKEN_IDENTIFIER)
+    {
+        name = copy_identifier_name(&token);
+        if(name == NULL)
+        {
+            free_value_type_array(params);
+            free_value_type_array(results);
+            close_files_and_free_memory(parser_state);
+            return false;
+        }
+
+        else
+        {
+            read_token(parser_state, &token);
+        }
+    }
+
+    switch(token.token_type)
+    {
+        case TOKEN_ERROR:
+        case TOKEN_NO_MATCH:
+            free_value_type_array(params);
+            free_value_type_array(results);
+            close_files_and_free_memory(parser_state);
+            return false;
+        case TOKEN_OPEN_PAREN:
+            read_token(parser_state, &token);
+            switch(token.token_type)
+            {
+                case TOKEN_ERROR:
+                case TOKEN_NO_MATCH:
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    close_files_and_free_memory(parser_state);
+                    return false;
+                case TOKEN_KEYWORD_FUNC:
+                    read_token(parser_state, &token);
+                    switch(token.token_type)
+                    {
+                        case TOKEN_ERROR:
+                        case TOKEN_NO_MATCH:
+                            free_value_type_array(params);
+                            free_value_type_array(results);
+                            close_files_and_free_memory(parser_state);
+                            return false;
+                        case TOKEN_OPEN_PAREN:
+                            read_token(parser_state, &token);
+                            switch(token.token_type)
+                            {
+                                case TOKEN_ERROR:
+                                case TOKEN_NO_MATCH:
+                                    free_value_type_array(params);
+                                    free_value_type_array(results);
+                                    close_files_and_free_memory(parser_state);
+                                    return false;
+                                case TOKEN_KEYWORD_PARAM:
+                                    return read_all_type_params(parser_state,
+                                                            params,
+                                                            results);
+                                case TOKEN_KEYWORD_RESULT:
+                                    return read_all_type_results(parser_state,
+                                                                params,
+                                                                results);
+                                case TOKEN_EOF:
+                                default:
+                                    print_parser_error(&token,
+                                    "Expected keyword \'param\' or \'result\'.");
+                                    free_value_type_array(params);
+                                    free_value_type_array(results);
+                                    close_files_and_free_memory(parser_state);
+                                    return false;
+                            }
+                        case TOKEN_EOF:
+                        default:
+                            print_parser_error(&token, "Expected \'(\'.");
+                            free_value_type_array(params);
+                            free_value_type_array(results);
+                            close_files_and_free_memory(parser_state);
+                            return false;
+                    }
+
+                case TOKEN_EOF:
+                default:
+                    print_parser_error(&token, "Expected keyword \'func\'.");
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    close_files_and_free_memory(parser_state);
+                    return false;
+            }
+
+        case TOKEN_CLOSE_PAREN:
+            print_parser_error(&token,
+                                "Type entry missing params and return types;\n"
+                                " ( type <name>? ( func <param>* <result>* ) )");
+        case TOKEN_EOF:
+        default:
+            print_parser_error(&token,
+                                   "Expected \'(\'.");
+            free_value_type_array(params);
+            free_value_type_array(results);
+            close_files_and_free_memory(parser_state);
+            return false;
+    }
 }
 
 bool read_import_entry(parser_state_t *parser_state, int line, int position)
@@ -322,6 +443,25 @@ bool read_data_entry(parser_state_t *parser_state, int line, int position)
 }
 
 bool read_name_entry(parser_state_t *parser_state, int line, int position)
+{
+    return false;
+}
+
+char *copy_identifier_name(token_t *token)
+{
+    return NULL;
+}
+
+bool read_all_type_params(parser_state_t *parser_state,
+                     value_type_array_t params,
+                     value_type_array_t results)
+{
+    return false;
+}
+
+bool read_all_type_results(parser_state_t *parser_state,
+                     value_type_array_t params,
+                     value_type_array_t results)
 {
     return false;
 }
