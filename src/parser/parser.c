@@ -17,12 +17,16 @@ typedef struct
 //TOKEN_ERROR
 void read_token(parser_state_t *parser_state, token_t *token);
 
-void close_files_and_free_memory(parser_state_t *parser_state);
-
+//This probably should return a bool as well
 int read_all_entrees(parser_state_t *parser_state, int line, int position);
 
-void print_parser_error(token_t *token, char *msg);
+bool write_to_object_file(parser_state_t *parser_state);
 
+void print_parser_error(parser_state_t *parser_state, token_t *token, char *msg);
+
+//I think should return a bool and not have an output type passed. It can just
+//output an object file by default and then an object file can be converted to
+//a module or text or whatever
 int open_file_for_parsing(char *input_file, char *output_file, output_type_t output_type)
 {
     parser_state_t parser_state;
@@ -37,7 +41,6 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
         case TOKEN_ERROR:
         case TOKEN_NO_MATCH:
             //read_token() prints a message for these types automagically
-            close_files_and_free_memory(&parser_state);
             return 1;
         case TOKEN_OPEN_PAREN:
             read_token(&parser_state, &token);
@@ -45,7 +48,6 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
             {
                 case TOKEN_ERROR:
                 case TOKEN_NO_MATCH:
-                    close_files_and_free_memory(&parser_state);
                     return 1;
                 case TOKEN_KEYWORD_MODULE:
                     read_token(&parser_state, &token);
@@ -53,7 +55,6 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                     {
                         case TOKEN_ERROR:
                         case TOKEN_NO_MATCH:
-                            close_files_and_free_memory(&parser_state);
                             return 1;
                         case TOKEN_OPEN_PAREN:
                             //I think I should pass either the line and
@@ -68,44 +69,41 @@ int open_file_for_parsing(char *input_file, char *output_file, output_type_t out
                             {
                                 case TOKEN_ERROR:
                                 case TOKEN_NO_MATCH:
-                                    close_files_and_free_memory(&parser_state);
                                     return 1;
                                 case TOKEN_EOF:
-                                    //write empty module
+                                    write_to_object_file(&parser_state);
                                     return 0;
                                 default:
                                     //expected EOF
-                                    print_parser_error(&token, "Expected EOF after \')\'.");
-                                    close_files_and_free_memory(&parser_state);
+                                    print_parser_error(&parser_state, &token, "Expected EOF after \')\'.");
                                     return 1;
                             }
 
                         case TOKEN_EOF:
                         default:
                             //expected '(' or ')'
-                            print_parser_error(&token, "Expected \')\' or \'(\'.");
-                            close_files_and_free_memory(&parser_state);
+                            print_parser_error(&parser_state, &token, "Expected \')\' or \'(\'.");
                             return 1;
                     }
 
                 case TOKEN_EOF:
                 default:
                     //expected module keyword
-                    print_parser_error(&token, "Expected \'module\' keyword.");
-                    close_files_and_free_memory(&parser_state);
+                    print_parser_error(&parser_state, &token, "Expected \'module\' keyword.");
                     return 1;
             }
 
         case TOKEN_EOF:
         default:
             //expected '(' message
-            print_parser_error(&token, "Expected \'(\'.");
-            close_files_and_free_memory(&parser_state);
+            print_parser_error(&parser_state, &token, "Expected \'(\'.");
             return 1;
     }
 }
 
 void print_token_error(token_t *token);
+
+void close_files_and_free_memory(parser_state_t *parser_state);
 
 void print_no_match_error(token_t *token);
 
@@ -116,6 +114,7 @@ void read_token(parser_state_t *parser_state, token_t *token)
     if(token->token_type == TOKEN_ERROR)
     {
         print_token_error(token);
+        close_files_and_free_memory(parser_state);
     }
 
     else
@@ -123,14 +122,9 @@ void read_token(parser_state_t *parser_state, token_t *token)
         if(token->token_type == TOKEN_NO_MATCH)
         {
             print_no_match_error(token);
+            close_files_and_free_memory(parser_state);
         }
     }
-}
-
-void close_files_and_free_memory(parser_state_t *parser_state)
-{
-    free_token_stream(parser_state->token_stream);
-    free_ast(parser_state->ast);
 }
 
 bool read_entry(parser_state_t *parser_state, int line, int position);
@@ -145,7 +139,6 @@ int read_all_entrees(parser_state_t *parser_state, int line, int position)
         {
             case TOKEN_ERROR:
             case TOKEN_NO_MATCH:
-                close_files_and_free_memory(parser_state);
                 return 1;
             case TOKEN_OPEN_PAREN:
                 return read_all_entires(parser_state,
@@ -157,20 +150,17 @@ int read_all_entrees(parser_state_t *parser_state, int line, int position)
                 {
                     case TOKEN_ERROR:
                     case TOKEN_NO_MATCH:
-                        close_files_and_free_memory(parser_state);
                         return 1;
                     case TOKEN_EOF:
-                        //write module if EOF
+                        write_to_object_file(parser_state);
                         return 0;
                     default:
-                        print_parser_error(&token, "Expected EOF.");
-                        close_files_and_free_memory(parser_state);
+                        print_parser_error(parser_state, &token, "Expected EOF.");
                         return 1;
                 }
             case TOKEN_EOF:
             default:
-                print_parser_error(&token, "Expected \')\' or \'(\'.");
-                close_files_and_free_memory(parser_state);
+                print_parser_error(parser_state, &token, "Expected \')\' or \'(\'.");
                 return 1;
         }
     }
@@ -181,22 +171,36 @@ int read_all_entrees(parser_state_t *parser_state, int line, int position)
     }
 }
 
+bool write_to_object_file(parser_state_t *parser_state)
+{
+    //write to object file
+    close_files_and_free_memory(parser_state);
+    return false;
+}
+
 #include <stdio.h>
 
 //prints to stderr a line indicating line and position of the token that caused
 //an error
 void print_token_location(token_t *token);
 
-void print_parser_error(token_t *token, char *msg)
+void print_parser_error(parser_state_t *parser_state, token_t *token, char *msg)
 {
     print_token_location(token);
     fprintf(stderr, "%s\n\n", msg);
+    close_files_and_free_memory(parser_state);
 }
 
 void print_token_error(token_t *token)
 {
     print_token_location(token);
     fprintf(stderr, "%s\n\n", token->token_string);
+}
+
+void close_files_and_free_memory(parser_state_t *parser_state)
+{
+    free_token_stream(parser_state->token_stream);
+    free_ast(parser_state->ast);
 }
 
 void print_no_match_error(token_t *token)
@@ -234,7 +238,6 @@ bool read_entry(parser_state_t *parser_state, int line, int position)
     {
         case TOKEN_ERROR:
         case TOKEN_NO_MATCH:
-            close_files_and_free_memory(parser_state);
             return false;
         case TOKEN_KEYWORD_TYPE:
             return read_type_entry(parser_state, line, position);
@@ -262,9 +265,8 @@ bool read_entry(parser_state_t *parser_state, int line, int position)
             return read_name_entry(parser_state, line, position);
         case TOKEN_EOF:
         default:
-            print_parser_error(&token,
+            print_parser_error(parser_state, &token,
                                "Expected keyword indicating type of entry.");
-            close_files_and_free_memory(parser_state);
             return false;
     }
 }
@@ -310,7 +312,6 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
         case TOKEN_NO_MATCH:
             free_value_type_array(params);
             free_value_type_array(results);
-            close_files_and_free_memory(parser_state);
             return false;
         case TOKEN_OPEN_PAREN:
             read_token(parser_state, &token);
@@ -320,7 +321,6 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
                 case TOKEN_NO_MATCH:
                     free_value_type_array(params);
                     free_value_type_array(results);
-                    close_files_and_free_memory(parser_state);
                     return false;
                 case TOKEN_KEYWORD_FUNC:
                     read_token(parser_state, &token);
@@ -330,7 +330,6 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
                         case TOKEN_NO_MATCH:
                             free_value_type_array(params);
                             free_value_type_array(results);
-                            close_files_and_free_memory(parser_state);
                             return false;
                         case TOKEN_OPEN_PAREN:
                             read_token(parser_state, &token);
@@ -340,7 +339,6 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
                                 case TOKEN_NO_MATCH:
                                     free_value_type_array(params);
                                     free_value_type_array(results);
-                                    close_files_and_free_memory(parser_state);
                                     return false;
                                 case TOKEN_KEYWORD_PARAM:
                                     return read_all_type_params(parser_state,
@@ -352,42 +350,39 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
                                                                 results);
                                 case TOKEN_EOF:
                                 default:
-                                    print_parser_error(&token,
-                                    "Expected keyword \'param\' or \'result\'.");
+                                    print_parser_error(parser_state, &token,
+                                  "Expected keyword \'param\' or \'result\'.");
                                     free_value_type_array(params);
                                     free_value_type_array(results);
-                                    close_files_and_free_memory(parser_state);
                                     return false;
                             }
                         case TOKEN_EOF:
                         default:
-                            print_parser_error(&token, "Expected \'(\'.");
+                            print_parser_error(parser_state, &token,
+                                               "Expected \'(\'.");
                             free_value_type_array(params);
                             free_value_type_array(results);
-                            close_files_and_free_memory(parser_state);
                             return false;
                     }
 
                 case TOKEN_EOF:
                 default:
-                    print_parser_error(&token, "Expected keyword \'func\'.");
+                    print_parser_error(parser_state, &token,
+                                       "Expected keyword \'func\'.");
                     free_value_type_array(params);
                     free_value_type_array(results);
-                    close_files_and_free_memory(parser_state);
                     return false;
             }
 
         case TOKEN_CLOSE_PAREN:
-            print_parser_error(&token,
+            print_parser_error(parser_state, &token,
                                 "Type entry missing params and return types;\n"
-                                " ( type <name>? ( func <param>* <result>* ) )");
+                              " ( type <name>? ( func <param>* <result>* ) )");
         case TOKEN_EOF:
         default:
-            print_parser_error(&token,
-                                   "Expected \'(\'.");
+            print_parser_error(parser_state, &token, "Expected \'(\'.");
             free_value_type_array(params);
             free_value_type_array(results);
-            close_files_and_free_memory(parser_state);
             return false;
     }
 }
