@@ -1,4 +1,6 @@
 //Do I really need to check for EOF seperately if default does the same thing?
+//Make sure if I'm printing a line of source due to an error that it can handle
+//the error being an unexpected EOF and print properly
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,7 +18,10 @@ typedef struct
 }parser_state_t;
 
 //reads a token from token stream and prints to stderr if it is of type
-//TOKEN_ERROR
+//TOKEN_ERROR or TOKEN_NO_MATCH. Changes the token type from TOKEN_NO_MATCH
+//to TOKEN_ERROR after the no match message is printed. Closes input file
+//and frees memory. If it is an identifier, it adds the name to the ast
+//and changes the string pointer from the token_stream buffer over to that.
 void read_token(parser_state_t *parser_state, token_t *token);
 
 //I was thinking that this could take a char pointer to the error message
@@ -26,15 +31,11 @@ void read_token(parser_state_t *parser_state, token_t *token);
 bool next_token_is(parser_state_t *parser_state, int token_type, char *error_msg);
 
 //This probably should return a bool as well
-bool read_all_entrees(parser_state_t *parser_state, int line, int position);
-
-bool write_to_object_file(parser_state_t *parser_state);
+bool read_all_entrees(parser_state_t *parser_state);
 
 void print_parser_error(parser_state_t *parser_state, char *msg);
 
-//I think should return a bool and not have an output type passed. It can just
-//output an object file by default and then an object file can be converted to
-//a module or text or whatever
+//read_all_entrees() doesn't need line and position passed anymore
 bool open_file_for_parsing(char *input_file, ast_t ast)
 {
     parser_state_t parser_state;
@@ -51,13 +52,10 @@ bool open_file_for_parsing(char *input_file, ast_t ast)
                 case TOKEN_ERROR:
                     break;
                 case TOKEN_OPEN_PAREN:
-                    return read_all_entrees(&parser_state,
-                                            token.token_line,
-                                            token.token_position);
+                    return read_all_entrees(&parser_state);
                 case TOKEN_CLOSE_PAREN:
                     if(next_token_is(&parser_state, TOKEN_EOF, "Expected EOF."))
                     {
-                        write_to_object_file(&parser_state);
                         return true;
                     }
 
@@ -81,7 +79,6 @@ void read_token(parser_state_t *parser_state, token_t *token)
 {
     //set location in parser state
     read_token_from_stream(parser_state->token_stream, token);
-    //perhaps print error message here
     parser_state->current_line = token->token_line;
     parser_state->current_position = token->token_position;
     switch(token->token_type)
@@ -128,61 +125,48 @@ bool next_token_is(parser_state_t *parser_state, int token_type, char *error_msg
     return false;
 }
 
-bool read_entry(parser_state_t *parser_state, int line, int position);
+bool read_entry(parser_state_t *parser_state);
 
-bool read_all_entrees(parser_state_t *parser_state, int line, int position)
+bool read_all_entrees(parser_state_t *parser_state)
 {
     //There's something wrong here. When this is called an open paren has
     //already been matched so I imagine this can be combined with the
     //read_entry() function below. Like this should just call read_entry()
     //and if the return value is true, check for an open paren and call
     //itself or if it is a close paren check for EOF and write the module
-    if(read_entry(parser_state, line, position))
+    if(read_entry(parser_state))
     {
         token_t token;
         read_token(parser_state, &token);
         switch(token.token_type)
         {
             case TOKEN_ERROR:
-            case TOKEN_NO_MATCH:
-                return 1;
+                return false;
             case TOKEN_OPEN_PAREN:
-                return read_all_entires(parser_state,
-                                        token.token_line,
-                                        token.token_position);
+                return read_all_entires(parser_state);
             case TOKEN_CLOSE_PAREN:
                 read_token(parser_state, &token);
                 switch(token.token_type)
                 {
                     case TOKEN_ERROR:
-                    case TOKEN_NO_MATCH:
-                        return 1;
+                        return false;
                     case TOKEN_EOF:
-                        write_to_object_file(parser_state);
-                        return 0;
+                        return true;
                     default:
                         print_parser_error(parser_state, "Expected EOF.");
-                        return 1;
+                        return false;
                 }
-            case TOKEN_EOF:
+
             default:
                 print_parser_error(parser_state, "Expected \')\' or \'(\'.");
-                return 1;
+                return false;
         }
     }
 
     else
     {
-        return 1;
+        return false;
     }
-}
-
-bool write_to_object_file(parser_state_t *parser_state)
-{
-    //write to object file
-    bool success = dump_ast_to_file(parser_state->ast);
-    close_files_and_free_memory(parser_state);
-    return success;
 }
 
 //prints to stderr a line indicating line and position of the token that caused
@@ -235,14 +219,16 @@ bool read_code_entry(parser_state_t *parser_state, int line, int position);
 bool read_data_entry(parser_state_t *parser_state, int line, int position);
 bool read_name_entry(parser_state_t *parser_state, int line, int position);
 
-bool read_entry(parser_state_t *parser_state, int line, int position)
+bool read_entry(parser_state_t *parser_state)
 {
     token_t token;
     read_token(parser_state, &token);
+    //get line and position from parser state
+    int line = parser_state->current_line;
+    int position = parser_state->current_position;
     switch(token.token_type)
     {
         case TOKEN_ERROR:
-        case TOKEN_NO_MATCH:
             return false;
         case TOKEN_KEYWORD_TYPE:
             return read_type_entry(parser_state, line, position);
@@ -268,7 +254,6 @@ bool read_entry(parser_state_t *parser_state, int line, int position)
             return read_data_entry(parser_state, line, position);
         case TOKEN_KEYWORD_NAME:
             return read_name_entry(parser_state, line, position);
-        case TOKEN_EOF:
         default:
             print_parser_error(parser_state,
                                "Expected keyword indicating type of entry.");
@@ -280,23 +265,27 @@ bool read_entry(parser_state_t *parser_state, int line, int position)
 //functions, however it seems like a sort of useless thing
 //Calls read_all_type_results if result keyword is found 
 bool read_all_type_params(parser_state_t *parser_state,
-                     value_type_array_t params,
-                     value_type_array_t results);
+                          char *type_name,
+                          value_type_array_t params,
+                          value_type_array_t results);
 
+//pass name pointer here too
 bool read_all_type_results(parser_state_t *parser_state,
-                     value_type_array_t params,
-                     value_type_array_t results);
+                           char *type_name,
+                           value_type_array_t params,
+                           value_type_array_t results);
 
 bool read_type_entry(parser_state_t *parser_state, int line, int position)
 {
-    char *name = NULL;
+    char *type_name = NULL;
     value_type_array_t params = new_value_type_array();
     value_type_array_t results = new_value_type_array();
     token_t token;
     read_token(parser_state, &token);
+    //read_token copies string from buffer to the ast
     if(token.token_type == TOKEN_IDENTIFIER)
     {
-        name = token.token_string;
+        type_name = token.token_string;
         read_token(parser_state, &token);
     }
 
@@ -308,9 +297,9 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
             free_value_type_array(results);
             return false;
         case TOKEN_OPEN_PAREN:
-            if(next_token_is(parser_state, TOKEN_KEYWORD_FUNC))
+            if(next_token_is(parser_state, TOKEN_KEYWORD_FUNC, "Expected keyword \'func\'."))
             {
-                if(next_token_is(parser_state, TOKEN_OPEN_PAREN))
+                if(next_token_is(parser_state, TOKEN_OPEN_PAREN, "Expected \'(\'."))
                 {
                     read_token(parser_state, &token);
                     switch(token.token_type)
@@ -322,10 +311,12 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
                             return false;
                         case TOKEN_KEYWORD_PARAM:
                             return read_all_type_params(parser_state,
+                                                        type_name,
                                                         params,
                                                         results);
                         case TOKEN_KEYWORD_RESULT:
                             return read_all_type_results(parser_state,
+                                                        type_name,
                                                         params,
                                                         results);
                         case TOKEN_EOF:
@@ -341,19 +332,24 @@ bool read_type_entry(parser_state_t *parser_state, int line, int position)
                 else
                 {
                     //expected open paren
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    return false;
                 }
             }
 
             else
             {
                 //expected func
+                free_value_type_array(params);
+                free_value_type_array(results);
+                return false;
             }
 
         case TOKEN_CLOSE_PAREN:
             print_parser_error(parser_state,
                                 "Type entry missing params and return types;\n"
                               " ( type <name>? ( func <param>* <result>* ) )");
-        case TOKEN_EOF:
         default:
             print_parser_error(parser_state, "Expected \'(\'.");
             free_value_type_array(params);
@@ -420,8 +416,9 @@ bool read_name_entry(parser_state_t *parser_state, int line, int position)
 bool read_value_type(parser_state_t *parser_state, value_type_t *value_type);
 
 bool read_all_type_params(parser_state_t *parser_state,
-                     value_type_array_t params,
-                     value_type_array_t results)
+                          char *type_name,
+                          value_type_array_t params,
+                          value_type_array_t results)
 {
     //I think this needs any name passed to this function
     //I might add a special message if a name is given to a param
@@ -456,10 +453,12 @@ bool read_all_type_params(parser_state_t *parser_state,
                                 return false;
                             case TOKEN_KEYWORD_PARAM:
                                 return read_all_type_params(parser_state,
+                                                            type_name,
                                                             params,
                                                             results);
                             case TOKEN_KEYWORD_RESULT:
                                 return read_all_type_results(parser_state,
+                                                                type_name,
                                                                 params,
                                                                 results);
                             case TOKEN_EOF:
@@ -583,8 +582,9 @@ bool read_all_type_params(parser_state_t *parser_state,
 }
 
 bool read_all_type_results(parser_state_t *parser_state,
-                     value_type_array_t params,
-                     value_type_array_t results)
+                           char *type_name,
+                           value_type_array_t params,
+                           value_type_array_t results)
 {
     //I think this needs any name passed to this function
     return false;
