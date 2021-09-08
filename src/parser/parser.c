@@ -482,7 +482,17 @@ bool read_all_type_params(parser_state_t *parser_state,
                 case TOKEN_CLOSE_PAREN:
                     //End of type entry
                     if(add_type_entry(parser_state->ast, NULL, params, results) >= 0)
+                    {
                         return true;
+                    }
+
+                    else
+                    {
+                        //Assume add_type_entry() frees the value_type_array_t's
+                        //passed to it
+                        close_files_and_free_memory(parser_state);
+                        return false;
+                    }
                         
                 case TOKEN_EOF:
                 default:
@@ -497,11 +507,16 @@ bool read_all_type_params(parser_state_t *parser_state,
         else
         {
             //free memory
+            free_value_type_array(params);
+            free_value_type_array(results);
+            return false;
         }
     }
 
     else
     {
+        //I think read_value_type() will print the right error and free
+        //parser_state stuff
         print_parser_error(parser_state,
              "Expected value type keyword.");
         free_value_type_array(params);
@@ -545,7 +560,8 @@ bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type
 
             else
             {
-                break;
+                close_files_and_free_memory(parser_state);
+                return false;
             }
 
         case TOKEN_KEYWORD_I64:
@@ -556,7 +572,8 @@ bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type
 
             else
             {
-                break;
+                close_files_and_free_memory(parser_state);
+                return false;
             }
 
         case TOKEN_KEYWORD_F32:
@@ -567,7 +584,8 @@ bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type
 
             else
             {
-                break;
+                close_files_and_free_memory(parser_state);
+                return false;
             }
 
         case TOKEN_KEYWORD_F64:
@@ -578,15 +596,14 @@ bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type
 
             else
             {
-                break;
+                close_files_and_free_memory(parser_state);
+                return false;
             }
-        //I think I need default here so the difference between different
-        //types of errors can be expressed better
-    }
 
-    //use parser error instead
-    close_files_and_free_memory(parser_state);
-    return false;
+        default:
+            print_parser_error(parser_state, "Expected value type.");
+            return false;
+    }
 }
 
 /*** end of file "parser.c" ***/
