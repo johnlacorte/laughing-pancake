@@ -1,6 +1,8 @@
 //Do I really need to check for EOF seperately if default does the same thing?
 //Make sure if I'm printing a line of source due to an error that it can handle
 //the error being an unexpected EOF and print properly
+//The parser_state_t and helper functions could be moved to its own source file
+//that way the functions that read different entries could be relocated too
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -277,16 +279,29 @@ bool read_all_type_results(parser_state_t *parser_state,
 
 bool read_type_entry(parser_state_t *parser_state, int line, int position)
 {
+    //perhaps this could put the calls to free the value type arrays in one
+    //place
     char *type_name = NULL;
     value_type_array_t params = new_value_type_array();
     value_type_array_t results = new_value_type_array();
     token_t token;
     read_token(parser_state, &token);
-    //read_token copies string from buffer to the ast
     if(token.token_type == TOKEN_IDENTIFIER)
     {
+        //I need a function to check if a type entry name already has been used
         type_name = token.token_string;
-        read_token(parser_state, &token);
+        if(get_named_type_entry_index(parser_state->ast, type_name) != -1)
+        {
+            print_parser_error(parser_state, "Type entry name already used.");
+            free_value_type_array(params);
+            free_value_type_array(results);
+            return false;
+        }
+        else
+        {
+            read_token(parser_state, &token);
+        }
+
     }
 
     switch(token.token_type)
@@ -413,7 +428,7 @@ bool read_name_entry(parser_state_t *parser_state, int line, int position)
     return false;
 }
 
-bool read_value_type(parser_state_t *parser_state, value_type_t *value_type);
+bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type_array);
 
 bool read_all_type_params(parser_state_t *parser_state,
                           char *type_name,
@@ -425,75 +440,63 @@ bool read_all_type_params(parser_state_t *parser_state,
     //make sure this and read_all_results() stop after the second close paren
     //because read_all_entries will check the stuff after.
     token_t token;
-    value_type_t value_type;
-    if(read_value_type(parser_state, &value_type))
+    if(read_value_type(parser_state, params))
     {
-        if(next_token_is(parser_state, TOKEN_CLOSE_PAREN))
+        if(next_token_is(parser_state, TOKEN_CLOSE_PAREN, "Expected \')\'."))
         {
-            //I think this was supposed to add a new param
-            if(add_type_entry(parser_state->ast, NULL, params, results) >= 0)
+            read_token(parser_state, &token);
+            switch(token.token_type)
             {
-                //) or (
-                read_token(parser_state, &token);
-                switch(token.token_type)
-                {
-                    case TOKEN_ERROR:
-                    case TOKEN_NO_MATCH:
-                        free_value_type_array(params);
-                        free_value_type_array(results);
-                        return false;
-                    case TOKEN_OPEN_PAREN:
-                        read_token(parser_state, &token);
-                        switch(token.token_type)
-                        {
-                            case TOKEN_ERROR:
-                            case TOKEN_NO_MATCH:
-                                free_value_type_array(params);
-                                free_value_type_array(results);
-                                return false;
-                            case TOKEN_KEYWORD_PARAM:
-                                return read_all_type_params(parser_state,
-                                                            type_name,
-                                                            params,
-                                                            results);
-                            case TOKEN_KEYWORD_RESULT:
-                                return read_all_type_results(parser_state,
-                                                                type_name,
-                                                                params,
-                                                                results);
-                            case TOKEN_EOF:
-                            default:
-                                print_parser_error(parser_state,
+                case TOKEN_ERROR:
+                case TOKEN_NO_MATCH:
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    return false;
+                case TOKEN_OPEN_PAREN:
+                    read_token(parser_state, &token);
+                    switch(token.token_type)
+                    {
+                        case TOKEN_ERROR:
+                        case TOKEN_NO_MATCH:
+                            free_value_type_array(params);
+                            free_value_type_array(results);
+                            return false;
+                        case TOKEN_KEYWORD_PARAM:
+                            return read_all_type_params(parser_state,
+                                                        type_name,
+                                                        params,
+                                                        results);
+                        case TOKEN_KEYWORD_RESULT:
+                            return read_all_type_results(parser_state,
+                                                        type_name,
+                                                        params,
+                                                        results);
+                        case TOKEN_EOF:
+                        default:
+                            print_parser_error(parser_state,
                                   "Expected keyword \'param\' or \'result\'.");
-                                free_value_type_array(params);
-                                free_value_type_array(results);
-                                return false;
-                        }
-                    case TOKEN_CLOSE_PAREN:
-                        //End of type entry
+                            free_value_type_array(params);
+                            free_value_type_array(results);
+                            return false;
+                    }
+                case TOKEN_CLOSE_PAREN:
+                    //End of type entry
+                    if(add_type_entry(parser_state->ast, NULL, params, results) >= 0)
+                        return true;
                         
-                    case TOKEN_EOF:
-                    default:
-                        print_parser_error(parser_state,
+                case TOKEN_EOF:
+                default:
+                    print_parser_error(parser_state,
                          "Expected \'(\' or \')\'.");
-                        free_value_type_array(params);
-                        free_value_type_array(results);
-                        return false;
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    return false;
                 }
-            }
-
-            else
-            {
-                //adding type to ast failed it should print an error message
-                //and free the value type arrays
-                close_files_and_free_memory(parser_state);
-                return false;
-            }
         }
 
         else
         {
-            //expected )
+            //free memory
         }
     }
 
@@ -505,80 +508,6 @@ bool read_all_type_params(parser_state_t *parser_state,
         free_value_type_array(results);
         return false;
     }
-    //the old code
-
-    read_token(parser_state, &token);
-    switch(token.token_type)
-    {
-        case TOKEN_ERROR:
-        case TOKEN_NO_MATCH:
-            free_value_type_array(params);
-            free_value_type_array(results);
-            return false;
-        case TOKEN_CLOSE_PAREN:
-            //add to the array and see what's next
-            if(add_type_entry(parser_state->ast, NULL, params, results) >= 0)
-            {
-                //check for another
-                read_token(parser_state, &token);
-                switch(token.token_type)
-                {
-                    case TOKEN_ERROR:
-                    case TOKEN_NO_MATCH:
-                        free_value_type_array(params);
-                        free_value_type_array(results);
-                        return false;
-                    case TOKEN_OPEN_PAREN:
-                        read_token(parser_state, &token);
-                        switch(token.token_type)
-                        {
-                            case TOKEN_ERROR:
-                            case TOKEN_NO_MATCH:
-                                free_value_type_array(params);
-                                free_value_type_array(results);
-                                return false;
-                            case TOKEN_KEYWORD_PARAM:
-                                return read_all_type_params(parser_state,
-                                                            params,
-                                                            results);
-                            case TOKEN_KEYWORD_RESULT:
-                                return read_all_type_results(parser_state,
-                                                                params,
-                                                                results);
-                            case TOKEN_EOF:
-                            default:
-                                print_parser_error(parser_state,
-                                  "Expected keyword \'param\' or \'result\'.");
-                                free_value_type_array(params);
-                                free_value_type_array(results);
-                                return false;
-                        }
-                    case TOKEN_CLOSE_PAREN:
-                        //End of type entry
-                    case TOKEN_EOF:
-                    default:
-                        print_parser_error(parser_state,
-                         "Expected \'(\' or \')\'.");
-                        free_value_type_array(params);
-                        free_value_type_array(results);
-                        return false;
-                }
-            }
-
-            else
-            {
-                //assume add_type_entry() printed an error message and freed
-                //value type arrays
-                close_files_and_free_memory(parser_state);
-                return false;
-            }
-        case TOKEN_EOF:
-        default:
-            print_parser_error(parser_state, "Expected \')\'.");
-            free_value_type_array(params);
-            free_value_type_array(results);
-            return false;
-    }
 }
 
 bool read_all_type_results(parser_state_t *parser_state,
@@ -586,34 +515,78 @@ bool read_all_type_results(parser_state_t *parser_state,
                            value_type_array_t params,
                            value_type_array_t results)
 {
-    //I think this needs any name passed to this function
     return false;
 }
 
-bool read_value_type(parser_state_t *parser_state, value_type_t *value_type)
+bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type_array)
 {
+    //this needs to read names if it is to be reused
     token_t token;
+    char *value_name = NULL;
     read_token(parser_state, &token);
+    if(token.token_type == TOKEN_IDENTIFIER)
+    {
+        //I guess I need to check if the name is already used in this
+        //value type array 
+        value_name = token.token_string;
+        read_token(parser_state, &token);
+    }
+
     switch(token.token_type)
     {
         case TOKEN_ERROR:
         case TOKEN_NO_MATCH:
             return false;
         case TOKEN_KEYWORD_I32:
-            value_type = VALUE_I32;
-            return true;
+            if(add_value_type_to_value_type_array(value_type_array, value_name, VALUE_I32))
+            {
+                return true;
+            }
+
+            else
+            {
+                break;
+            }
+
         case TOKEN_KEYWORD_I64:
-            value_type = VALUE_I64;
-            return true;
+            if(add_value_type_to_value_type_array(value_type_array, value_name, VALUE_I64))
+            {
+                return true;
+            }
+
+            else
+            {
+                break;
+            }
+
         case TOKEN_KEYWORD_F32:
-            value_type = VALUE_F32;
-            return true;
+            if(add_value_type_to_value_type_array(value_type_array, value_name, VALUE_F32))
+            {
+                return true;
+            }
+
+            else
+            {
+                break;
+            }
+
         case TOKEN_KEYWORD_F64:
-            value_type = VALUE_F64;
-            return true;
-        default:
-            return false;
+            if(add_value_type_to_value_type_array(value_type_array, value_name, VALUE_F64))
+            {
+                return true;
+            }
+
+            else
+            {
+                break;
+            }
+        //I think I need default here so the difference between different
+        //types of errors can be expressed better
     }
+
+    //use parser error instead
+    close_files_and_free_memory(parser_state);
+    return false;
 }
 
 /*** end of file "parser.c" ***/
