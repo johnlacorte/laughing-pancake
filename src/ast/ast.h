@@ -20,6 +20,8 @@ bool add_value_type_to_value_type_array(value_type_array_t value_type_array,
                                         char *name,
                                         value_type_t value_type);
 
+int get_named_value_type_index(value_type_array_t value_type_array, char *value_name);
+
 //name is a little useless. I'm thinking that type entries should go into the
 //module exactly how they are because they are probably referenced by index
 //that would mean those given within an import or a function would have to have
