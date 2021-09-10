@@ -1,6 +1,3 @@
-//Do I really need to check for EOF seperately if default does the same thing?
-//Make sure if I'm printing a line of source due to an error that it can handle
-//the error being an unexpected EOF and print properly
 //The parser_state_t and helper functions could be moved to its own source file
 //that way the functions that read different entries could be relocated too
 #include <stdbool.h>
@@ -32,12 +29,10 @@ void read_token(parser_state_t *parser_state, token_t *token);
 //only need to free any additional data structures used and return false;
 bool next_token_is(parser_state_t *parser_state, int token_type, char *error_msg);
 
-//This probably should return a bool as well
 bool read_all_entrees(parser_state_t *parser_state);
 
 void print_parser_error(parser_state_t *parser_state, char *msg);
 
-//read_all_entrees() doesn't need line and position passed anymore
 bool open_file_for_parsing(char *input_file, ast_t ast)
 {
     parser_state_t parser_state;
@@ -79,7 +74,6 @@ void print_no_match_error(token_t *token);
 
 void read_token(parser_state_t *parser_state, token_t *token)
 {
-    //set location in parser state
     read_token_from_stream(parser_state->token_stream, token);
     parser_state->current_line = token->token_line;
     parser_state->current_position = token->token_position;
@@ -131,11 +125,6 @@ bool read_entry(parser_state_t *parser_state);
 
 bool read_all_entrees(parser_state_t *parser_state)
 {
-    //There's something wrong here. When this is called an open paren has
-    //already been matched so I imagine this can be combined with the
-    //read_entry() function below. Like this should just call read_entry()
-    //and if the return value is true, check for an open paren and call
-    //itself or if it is a close paren check for EOF and write the module
     if(read_entry(parser_state))
     {
         token_t token;
@@ -153,6 +142,7 @@ bool read_all_entrees(parser_state_t *parser_state)
                     case TOKEN_ERROR:
                         return false;
                     case TOKEN_EOF:
+                        //Base case if parser sucessfully reads file into ast
                         return true;
                     default:
                         print_parser_error(parser_state, "Expected EOF.");
@@ -439,11 +429,11 @@ bool read_all_type_params(parser_state_t *parser_state,
     //I might add a special message if a name is given to a param
     //make sure this and read_all_results() stop after the second close paren
     //because read_all_entries will check the stuff after.
-    token_t token;
     if(read_value_type(parser_state, params))
     {
         if(next_token_is(parser_state, TOKEN_CLOSE_PAREN, "Expected \')\'."))
         {
+            token_t token;
             read_token(parser_state, &token);
             switch(token.token_type)
             {
@@ -515,10 +505,6 @@ bool read_all_type_params(parser_state_t *parser_state,
 
     else
     {
-        //I think read_value_type() will print the right error and free
-        //parser_state stuff
-        print_parser_error(parser_state,
-             "Expected value type keyword.");
         free_value_type_array(params);
         free_value_type_array(results);
         return false;
@@ -530,12 +516,82 @@ bool read_all_type_results(parser_state_t *parser_state,
                            value_type_array_t params,
                            value_type_array_t results)
 {
-    return false;
+    if(read_value_type(parser_state, params))
+    {
+        if(next_token_is(parser_state, TOKEN_CLOSE_PAREN, "Expected \')\'."))
+        {
+            token_t token;
+            read_token(parser_state, &token);
+            switch(token.token_type)
+            {
+                case TOKEN_ERROR:
+                case TOKEN_NO_MATCH:
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    return false;
+                case TOKEN_OPEN_PAREN:
+                    if(next_token_is(parser_state, TOKEN_KEYWORD_RESULT, "Expected keyword \'result\'."))
+                    {
+                        return read_all_type_results(parser_state,
+                                                    type_name,
+                                                    params,
+                                                    results);
+                    }
+
+                    else
+                    {
+                        free_value_type_array(params);
+                        free_value_type_array(results);
+                        return false;
+                    }
+
+                case TOKEN_CLOSE_PAREN:
+                    //End of type entry
+                    if(add_type_entry(parser_state->ast, NULL, params, results) >= 0)
+                    {
+                        return true;
+                    }
+
+                    else
+                    {
+                        //Assume add_type_entry() frees the value_type_array_t's
+                        //passed to it
+                        close_files_and_free_memory(parser_state);
+                        return false;
+                    }
+                        
+                case TOKEN_EOF:
+                default:
+                    print_parser_error(parser_state,
+                         "Expected \'(\' or \')\'.");
+                    free_value_type_array(params);
+                    free_value_type_array(results);
+                    return false;
+            }
+        }
+
+        else
+        {
+            free_value_type_array(params);
+            free_value_type_array(results);
+            return false;
+        }
+    }
+
+    else
+    {
+        free_value_type_array(params);
+        free_value_type_array(results);
+        return false;
+    }
 }
 
 bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type_array)
 {
     //this needs to read names if it is to be reused
+    //This needs some work. Errors due to wrong token type go here. Adding
+    //value type errors go there. Freeing value type arrays needs to be done
+    //after this function returns false.
     token_t token;
     char *value_name = NULL;
     read_token(parser_state, &token);
