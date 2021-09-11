@@ -600,7 +600,17 @@ bool read_value_type(parser_state_t *parser_state, value_type_array_t value_type
         //I guess I need to check if the name is already used in this
         //value type array 
         value_name = token.token_string;
-        read_token(parser_state, &token);
+        if(get_named_value_type_index(value_type_array, value_name) < 0)
+        {
+            read_token(parser_state, &token);
+        }
+
+        else
+        {
+            //print_parser_error?
+            print_parser_error(parser_state, "Value type name already exists.");
+            return false;
+        }
     }
 
     switch(token.token_type)
