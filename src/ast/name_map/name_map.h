@@ -18,6 +18,8 @@ typedef struct
 
 void init_name_map(name_map_t *name_map);
 
+void free_name_map(name_map_t *name_map);
+
 bool add_name_to_name_map(name_map_t *name_map, char *name, int index);
 
 int get_name_index(name_map_t *name_map, char *name);
