@@ -37,7 +37,7 @@ bool add_name_to_name_map(name_map_t *name_map, char *name, int index)
         {
             free(new);
             free_name_map(name_map);
-            //message
+            fprintf(stderr, "Failed to allocate memory for name.\n");
             return false;
         }
     }
@@ -48,7 +48,7 @@ bool add_name_to_name_map(name_map_t *name_map, char *name, int index)
         if(current->name_string == name)
         {
             free_name_map(name_map);
-            //message
+            fprintf(stderr, "Name \"%s\" already declared.\n", name);
             return false;
         }
 
@@ -57,7 +57,7 @@ bool add_name_to_name_map(name_map_t *name_map, char *name, int index)
             if(current->name_string == name)
             {
                 free_name_map(name_map);
-                //message
+                fprintf(stderr, "Name \"%s\" already declared.\n", name);
                 return false;
             }
 
@@ -78,7 +78,7 @@ bool add_name_to_name_map(name_map_t *name_map, char *name, int index)
         {
             free(new);
             free_name_map(name_map);
-            //message
+            fprintf(stderr, "Failed to allocate memory for name.\n");
             return false;
         }
     }
@@ -86,6 +86,19 @@ bool add_name_to_name_map(name_map_t *name_map, char *name, int index)
 
 int get_name_index(name_map_t *name_map, char *name)
 {
+    name_t *current = name_map->head;
+    while(current != NULL)
+    {
+        if(current->name_string == name)
+        {
+            return current->index;
+        }
+
+        current = current->next;
+    }
+
+    free_name_map(name_map);
+    fprintf(stderr, "Unknown name \"%s\".\n");
     return -1;
 }
 
