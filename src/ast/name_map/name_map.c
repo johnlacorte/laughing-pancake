@@ -11,7 +11,13 @@ void init_name_map(name_map_t *name_map)
 
 void free_name_map(name_map_t *name_map)
 {
-    //free the name list
+    name_t *current = name_map->head;
+    while(current != NULL)
+    {
+        name_t *next = current->next;
+        free(current);
+        current = next;
+    }
 }
 
 name_t *new_name(char *name, int index);
@@ -85,7 +91,15 @@ int get_name_index(name_map_t *name_map, char *name)
 
 name_t *new_name(char *name, int index)
 {
-    return NULL;
+    name_t *new = malloc(sizeof(name_t));
+    if(new != NULL)
+    {
+        new->name_string = name;
+        new->index = index;
+        new->next = NULL;
+    }
+
+    return new;
 }
 
 /*** end of file "name_map.c" ***/
