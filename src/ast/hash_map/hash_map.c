@@ -11,16 +11,39 @@ typedef struct name
 
 typedef struct
 {
+    char **slots;
     int number_of_names;
     int number_of_slots;
-    //need an array of name_t and head and tail of a list of all names added
-    //for rehashing and freeing
-    char **slots;
+    name_t *name_list_head;
+    name_t *name_list_tail;
 } hash_map_state_t;
 
 hash_map_t new_hash_map(int initial_size)
 {
-    return NULL;
+    hash_map_state_t *new = malloc(sizeof(hash_map_state_t));
+    if(new != NULL)
+    {
+        new->slots = malloc(sizeof(char**) * initial_size);
+        if(new->slots != NULL)
+        {
+            new->number_of_names = 0;
+            new->number_of_slots = initial_size;
+            new->name_list_head = NULL;
+            new->name_list_tail = NULL;
+            return (hash_map_t)new;
+        }
+
+        else
+        {
+            free(new);
+            return NULL;
+        }
+    }
+
+    else
+    {
+        return NULL;
+    }
 }
 
 void free_hash_map(hash_map_t hash_map)
