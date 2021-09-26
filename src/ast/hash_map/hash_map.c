@@ -46,9 +46,14 @@ hash_map_t new_hash_map(int initial_size)
     }
 }
 
+static void free_name_list(name_t *name_list_head);
+
 void free_hash_map(hash_map_t hash_map)
 {
-
+    hash_map_state_t *state = (hash_map_state_t*)hash_map;
+    free_name_list(state->name_list_head);
+    free(state->slots);
+    free(state);
 }
 
 char *add_name_to_hash_map(hash_map_t hash_map, char *name)
@@ -56,9 +61,9 @@ char *add_name_to_hash_map(hash_map_t hash_map, char *name)
     return NULL;
 }
 
-char *add_name_to_hash_map(hash_map_t *hash_map, char *name)
+static void free_name_list(name_t *name_list_head)
 {
-    return NULL;
+
 }
 
 /*** end of file "hash_map.c" ***/
